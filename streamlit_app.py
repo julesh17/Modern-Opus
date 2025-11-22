@@ -11,131 +11,124 @@ from icalendar import Calendar, Event, Timezone, TimezoneStandard, TimezoneDayli
 from streamlit_calendar import calendar as st_calendar
 
 # ==============================================================================
-# 1. CONFIGURATION & DESIGN "MODERN OPUS" (Jaune & Noir)
+# 1. CONFIGURATION & DESIGN "APPLE x CESI"
 # ==============================================================================
-st.set_page_config(page_title="Modern Opus", page_icon="🎹", layout="wide")
+st.set_page_config(page_title="Modern Opus", page_icon="📅", layout="wide")
 
-st.markdown("""
+# Palette CESI & Apple Style
+CESI_YELLOW = "#FFC20E" 
+CESI_BLACK = "#000000"
+APPLE_GRAY = "#F5F5F7"
+WHITE = "#FFFFFF"
+
+st.markdown(f"""
 <style>
-    /* Import Font */
-    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Roboto:wght@300;400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
-    /* COULEURS : Noir (#121212), Jaune (#FFD700), Gris Foncé (#1E1E1E) */
+    /* Global Reset */
+    html, body, [class*="css"] {{
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: {APPLE_GRAY};
+        color: {CESI_BLACK};
+    }}
     
-    html, body, [class*="css"] {
-        font-family: 'Roboto', sans-serif;
-        color: #E0E0E0;
-        background-color: #121212;
-    }
-    
-    h1, h2, h3 {
-        font-family: 'Oswald', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* Header Principal */
-    .main-header {
-        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-        padding: 2rem;
-        border-radius: 0px 0px 20px 20px;
-        color: #121212;
+    /* Header Minimaliste */
+    .main-header {{
+        background-color: {WHITE};
+        padding: 1.5rem 0;
+        border-bottom: 1px solid #E5E5E5;
         margin-bottom: 2rem;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
-    }
-    .main-header h1 {
-        color: #121212 !important;
-        font-weight: 800;
-        font-size: 3rem;
+    }}
+    .main-header h1 {{
+        font-weight: 700;
+        font-size: 2.2rem;
         margin: 0;
-    }
-    .main-header p {
-        color: #121212;
-        font-weight: 600;
-        font-size: 1.2rem;
-    }
-
-    /* Cards Metrics */
-    .metric-card {
-        background-color: #1E1E1E;
-        border-left: 5px solid #FFD700;
+        letter-spacing: -0.5px;
+        color: {CESI_BLACK};
+    }}
+    
+    /* Cards Metrics (Apple Style) */
+    .metric-card {{
+        background-color: {WHITE};
+        border-radius: 12px;
         padding: 1.5rem;
-        border-radius: 5px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
         text-align: center;
-        transition: transform 0.2s;
-    }
-    .metric-card:hover {
-        transform: scale(1.02);
-        background-color: #252525;
-    }
-    .metric-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: #FFD700;
-        font-family: 'Oswald', sans-serif;
-    }
-    .metric-label {
-        color: #B0B0B0;
-        font-size: 0.9rem;
+        border: 1px solid #EAEAEA;
+    }}
+    .metric-value {{
+        font-size: 2rem;
+        font-weight: 700;
+        color: {CESI_BLACK};
+    }}
+    .metric-label {{
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #86868b; /* Apple Gray Text */
         text-transform: uppercase;
-        letter-spacing: 1px;
-    }
+        margin-top: 5px;
+    }}
     
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: #121212;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        background-color: #1E1E1E;
-        border-radius: 5px;
-        color: #B0B0B0;
+    /* Tabs Élégants */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 8px;
+        background-color: transparent;
+        padding-bottom: 10px;
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        height: 40px;
+        background-color: {WHITE};
+        border-radius: 8px;
+        color: #1d1d1f;
+        font-weight: 500;
+        border: 1px solid #E5E5E5;
+        padding: 0 20px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }}
+    .stTabs [aria-selected="true"] {{
+        background-color: {CESI_YELLOW};
+        color: {CESI_BLACK};
+        border-color: {CESI_YELLOW};
         font-weight: 600;
-        border: 1px solid #333;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #FFD700;
-        color: #121212;
-        border: 1px solid #FFD700;
-    }
+    }}
 
-    /* Dataframes */
-    [data-testid="stDataFrame"] {
-        border: 1px solid #333;
-    }
-    
-    /* Custom Buttons */
-    .stButton button {
-        background-color: #FFD700;
-        color: #121212;
-        font-weight: bold;
-        border-radius: 5px;
+    /* Input & Select boxes */
+    .stSelectbox > div > div {{
+        border-radius: 8px;
+        border: 1px solid #d2d2d7;
+    }}
+
+    /* Buttons */
+    .stButton button {{
+        background-color: {CESI_BLACK};
+        color: {WHITE};
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
         border: none;
-        transition: all 0.3s ease;
-    }
-    .stButton button:hover {
-        background-color: #FFA500;
-        color: black;
-        box-shadow: 0 0 10px #FFD700;
-    }
-
-    /* Warning/Info boxes style */
-    .stAlert {
-        background-color: #1E1E1E;
-        color: #E0E0E0;
-        border: 1px solid #333;
-    }
+        transition: transform 0.1s ease;
+    }}
+    .stButton button:hover {{
+        background-color: #333333;
+        transform: scale(1.02);
+        color: {WHITE};
+    }}
+    
+    /* Dataframes clean */
+    [data-testid="stDataFrame"] {{
+        border: 1px solid #E5E5E5;
+        border-radius: 8px;
+        overflow: hidden;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. MOTEUR DE PARSING ROBUSTE
+# 2. LOGIQUE MÉTIER (ROBUSTE & SANS RÉGRESSION)
 # ==============================================================================
 
-# --- Utilities ---
+# [cite_start]--- Utilities [cite: 1, 49] ---
 def normalize_group_label(x):
     if x is None: return None
     try:
@@ -143,7 +136,6 @@ def normalize_group_label(x):
     except: pass
     s = str(x).strip()
     if not s: return None
-    # [cite_start]Regex pour capturer G1, G 1, Groupe 1, etc. [cite: 2, 49]
     m = re.search(r'G\s*\.?\s*(\d+)', s, re.I)
     if m: return f'G {m.group(1)}'
     m2 = re.search(r'^(?:groupe)?\s*(\d+)$', s, re.I)
@@ -184,6 +176,7 @@ def to_date(x):
     except: return None
 
 def get_merged_map_from_bytes(xls_bytes, sheet_name):
+    [cite_start]# [cite: 56]
     wb = load_workbook(io.BytesIO(xls_bytes), data_only=True)
     ws = wb[sheet_name]
     merged_map = {}
@@ -194,24 +187,20 @@ def get_merged_map_from_bytes(xls_bytes, sheet_name):
                 merged_map[(r - 1, c - 1)] = (r1 - 1, c1 - 1, r2 - 1, c2 - 1)
     return merged_map
 
-# --- Core Parsing Function (Cached) ---
 @st.cache_data(show_spinner=False)
 def parse_excel_engine(file_content, sheet_names_to_scan):
-    """
-    Parsing optimisé. Ne traite que les feuilles valides.
-    """
+    [cite_start]""" Moteur de parsing unifié [cite: 58-96] """
     results = {}
     
     for sheet in sheet_names_to_scan:
         try:
-            # Lecture DataFrame
+            # Renommage P1/P2 pour l'affichage
+            promo_name = "P1" if "P1" in sheet.upper() else ("P2" if "P2" in sheet.upper() else sheet)
+
             df = pd.read_excel(io.BytesIO(file_content), sheet_name=sheet, header=None, engine='openpyxl')
-            
-            # Lecture Merged Cells
             merged_map = get_merged_map_from_bytes(file_content, sheet)
             
             nrows, ncols = df.shape
-            # [cite_start]Détection lignes semaines (S xx) et lignes heures (H xx) [cite: 7, 53]
             s_rows = [i for i in range(len(df)) if isinstance(df.iat[i,0], str) and re.match(r'^\s*S\s*\d+', df.iat[i,0].strip(), re.I)]
             h_rows = [i for i in range(len(df)) if isinstance(df.iat[i,0], str) and re.match(r'^\s*H\s*\d+', df.iat[i,0].strip(), re.I)]
             
@@ -229,27 +218,24 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                     for col in (c, c + 1):
                         if col >= ncols: continue
                         
-                        # Summary
                         try: summary = df.iat[r, col]
                         except: summary = None
                         if pd.isna(summary) or summary is None: continue
                         summary_str = str(summary).strip()
                         if not summary_str: continue
                         
-                        # [cite_start]Teachers - Correction Bug "1.222" [cite: 12, 64]
+                        # [cite_start]Teachers [cite: 65] + Correction bug float
                         teachers = []
                         if (r+2) < nrows:
                             for off in range(2, 6):
                                 if (r+off) >= nrows: break
                                 try: t = df.iat[r+off, col]
                                 except: t = None
-                                # On vérifie que ce n'est pas un nombre
                                 if t and not pd.isna(t) and not is_time_like(t) and not isinstance(t, (int, float)):
                                     s_t = str(t).strip()
                                     if s_t: teachers.append(s_t)
                         teachers = list(dict.fromkeys(teachers))
                         
-                        # Stop Index / Time
                         stop_idx = None
                         for off in range(1, 12):
                             idx = r + off
@@ -261,7 +247,6 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                             except: continue
                         if stop_idx is None: stop_idx = min(r+7, nrows)
                         
-                        # Description
                         desc_parts = []
                         for idx in range(r+1, stop_idx):
                             if idx >= nrows: break
@@ -270,12 +255,10 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                             if pd.isna(cell) or cell is None: continue
                             s_cell = str(cell).strip()
                             if not s_cell or to_date(cell) is not None: continue
-                            # [cite_start]Exclusion enseignants/summary dans description [cite: 22, 75]
                             if s_cell in teachers or s_cell == summary_str: continue
                             desc_parts.append(s_cell)
                         desc_text = " | ".join(dict.fromkeys(desc_parts))
                         
-                        # Start/End Time
                         start_val, end_val = None, None
                         for off in range(1, 13):
                             idx = r + off
@@ -290,12 +273,10 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                         start_t, end_t = to_time(start_val), to_time(end_val)
                         if start_t is None or end_t is None: continue
                         
-                        # Date
                         d = to_date(df.iat[date_row, c])
                         if d is None: continue
                         dtstart, dtend = datetime.combine(d, start_t), datetime.combine(d, end_t)
                         
-                        # Groups
                         gl = normalize_group_label(df.iat[group_row, col] if group_row < nrows else None)
                         gl_next = normalize_group_label(df.iat[group_row, col+1] if (col+1) < ncols and group_row < nrows else None)
                         
@@ -304,7 +285,6 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                         if is_left:
                             merged_here = merged_map.get((r, col))
                             merged_right = merged_map.get((r, col+1))
-                            # [cite_start]Si fusionné horizontalement, c'est les deux groupes [cite: 30, 89]
                             if merged_here and merged_right and merged_here == merged_right:
                                 if gl: groups.add(gl)
                                 if gl_next: groups.add(gl_next)
@@ -322,7 +302,6 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                             'groups': groups
                         })
             
-            # Fusion des doublons
             merged = {}
             for e in raw_events:
                 key = (e['summary'], e['start'], e['end'])
@@ -349,19 +328,17 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                     'end': v['end'],
                     'groups': sorted(list(v['groups']))
                 })
-            results[sheet] = final_events
+            
+            # Stockage avec la clé simplifiée "P1" ou "P2"
+            results[promo_name] = final_events
             
         except Exception as e:
-            print(f"Erreur parsing {sheet}: {e}")
             results[sheet] = []
             
     return results
 
-# ==============================================================================
-# 3. EXPORT & TOOLS
-# ==============================================================================
-
 def generate_ics(events, tzname='Europe/Paris'):
+    [cite_start]# [cite: 38]
     cal = Calendar()
     cal.add('prodid', '-//Modern Opus//FR')
     cal.add('version', '2.0')
@@ -387,7 +364,6 @@ def generate_ics(events, tzname='Europe/Paris'):
     for ev in events:
         e = Event()
         e.add('summary', ev['summary'])
-        
         start_dt = ev['start']
         end_dt = ev['end']
         if start_dt.tzinfo is None: start_dt = timezone.localize(start_dt)
@@ -403,18 +379,17 @@ def generate_ics(events, tzname='Europe/Paris'):
         if ev['teachers']: desc_lines.append('Enseignant(s): ' + ', '.join(ev['teachers']))
         if ev['groups']: desc_lines.append('Groupes: ' + ', '.join(ev['groups']))
         e.add('description', '\n'.join(desc_lines))
-        
         cal.add_component(e)
         
     return cal.to_ical()
 
 # ==============================================================================
-# 4. INTERFACE PRINCIPALE
+# 3. INTERFACE
 # ==============================================================================
 
-st.markdown('<div class="main-header"><h1>MODERN OPUS</h1><p>L\'Excellence de la Planification.</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header"><h1>Modern Opus</h1></div>', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("📂 Déposez votre fichier Excel (Format EDT P1/P2)", type=['xlsx'])
+uploaded_file = st.file_uploader("Déposer le fichier Excel", type=['xlsx'])
 
 if uploaded_file:
     file_bytes = uploaded_file.read()
@@ -422,89 +397,72 @@ if uploaded_file:
     try:
         xls = pd.ExcelFile(io.BytesIO(file_bytes), engine='openpyxl')
         all_sheets = xls.sheet_names
-        # FILTRE STRICT DEMANDÉ : Doit contenir "EDT" ET ("P1" OU "P2")
-        promo_sheets = [
-            s for s in all_sheets 
-            if "EDT" in s.upper() and ("P1" in s.upper() or "P2" in s.upper())
-        ]
-        # Maquette moins stricte
+        # Filtre strict : EDT + P1/P2
+        promo_sheets = [s for s in all_sheets if "EDT" in s.upper() and ("P1" in s.upper() or "P2" in s.upper())]
         maquette_sheet = next((s for s in all_sheets if "maquette" in s.lower()), None)
     except Exception as e:
-        st.error(f"Erreur de lecture du fichier: {e}")
+        st.error(f"Erreur fichier: {e}")
         st.stop()
 
     if not promo_sheets:
-        st.error("⛔ Aucune feuille valide détectée. Le fichier doit contenir des feuilles nommées 'EDT P1' ou 'EDT P2'.")
+        st.error("Aucune feuille 'EDT P1' ou 'EDT P2' détectée.")
         st.stop()
 
-    with st.spinner('Analyse approfondie des données en cours...'):
+    with st.spinner('Chargement...'):
         events_map = parse_excel_engine(file_bytes, promo_sheets)
 
-    # Agrégation globale
+    # Agrégation
     all_events_flat = []
     teachers_set = set()
     subjects_set = set()
-    exam_events = []
-
-    for sheet, evs in events_map.items():
+    
+    for promo_name, evs in events_map.items():
         for e in evs:
-            e['source_sheet'] = sheet # On stocke la source (ex: EDT P1)
+            e['promo_label'] = promo_name
             all_events_flat.append(e)
             for t in e['teachers']: teachers_set.add(t)
             subjects_set.add(e['summary'])
-            
-            # Détection examen
-            text_blob = (e['summary'] + " " + e['description']).lower()
-            if any(kw in text_blob for kw in ['examen', 'ds ', 'partiel', 'exam ']):
-                exam_events.append(e)
     
-    # --- DASHBOARD METRICS ---
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f'<div class="metric-card"><div class="metric-value">{len(all_events_flat)}</div><div class="metric-label">Séances Totales</div></div>', unsafe_allow_html=True)
-    with col2:
+    # --- Metrics ---
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(f'<div class="metric-card"><div class="metric-value">{len(all_events_flat)}</div><div class="metric-label">Séances</div></div>', unsafe_allow_html=True)
+    with c2:
         st.markdown(f'<div class="metric-card"><div class="metric-value">{len(promo_sheets)}</div><div class="metric-label">Promos</div></div>', unsafe_allow_html=True)
-    with col3:
+    with c3:
         st.markdown(f'<div class="metric-card"><div class="metric-value">{len(teachers_set)}</div><div class="metric-label">Enseignants</div></div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown(f'<div class="metric-card"><div class="metric-value" style="color:white">{len(exam_events)}</div><div class="metric-label">Examens Détectés</div></div>', unsafe_allow_html=True)
     
     st.write("") 
 
-    # --- TABS NAVIGATION ---
     tab_cal, tab_mail, tab_stats, tab_exam, tab_export, tab_maquette = st.tabs([
-        "🗓️ Visualisation", 
-        "✉️ Générateur de Mails",
+        "🗓️ Calendrier", 
+        "✉️ Mails",
         "📊 Récapitulatifs",
         "🎓 Examens",
-        "📥 Exports ICS", 
-        "📐 Comparatif Maquette"
+        "📥 Exports", 
+        "📐 Maquette"
     ])
 
-    # ====================== TAB 1: CALENDRIER ======================
+    # --- TAB 1: CALENDRIER ---
     with tab_cal:
-        col_sel, col_cal = st.columns([1, 4])
+        col_sel, col_view = st.columns([1, 4])
         with col_sel:
-            st.markdown("### Configuration")
-            cal_promo = st.selectbox("Promo", promo_sheets, key="cal_sel")
-            view_mode = st.radio("Vue", ["Semaine", "Mois"], index=0)
+            # Sélecteur de promo basé sur les clés du dictionnaire (P1, P2)
+            cal_promo = st.selectbox("Promo", list(events_map.keys()), key="cal_p")
+            view_mode = st.radio("Vue", ["Semaine", "Mois"])
         
-        with col_cal:
+        with col_view:
             cal_events = []
+            # Couleurs plus modernes et claires
             for ev in events_map.get(cal_promo, []):
-                # Design: Titre propre sans () vides
-                teachers_str = ', '.join(ev['teachers'])
-                title = ev['summary']
-                if teachers_str:
-                    title += f" ({teachers_str})"
-                
                 cal_events.append({
-                    "title": title,
+                    "title": ev['summary'], # Plus clair, juste la matière
                     "start": ev['start'].isoformat(),
                     "end": ev['end'].isoformat(),
-                    "backgroundColor": "#FFD700", # Jaune Modern Opus
-                    "borderColor": "#B8860B",
-                    "textColor": "#000000" # Texte Noir
+                    "backgroundColor": "#FFC20E", # Jaune CESI
+                    "borderColor": "#FFC20E",
+                    "textColor": "#000000",
+                    "extendedProps": {"description": f"{', '.join(ev['teachers'])}"}
                 })
             
             calendar_options = {
@@ -514,207 +472,228 @@ if uploaded_file:
                     "right": ""
                 },
                 "initialView": "timeGridWeek" if view_mode == "Semaine" else "dayGridMonth",
-                "slotMinTime": "07:00:00",
-                "slotMaxTime": "20:00:00",
-                "allDaySlot": False,
+                "slotMinTime": "07:30:00",
+                "slotMaxTime": "19:30:00",
                 "contentHeight": "auto",
-                "locale": "fr"
+                "locale": "fr",
+                "allDaySlot": False,
+                "nowIndicator": True,
+                "eventBorderColor": "transparent"
             }
             if cal_events:
                 st_calendar(events=cal_events, options=calendar_options)
-            else:
-                st.info("Aucun événement à afficher.")
 
-    # ====================== TAB 2: GÉNÉRATEUR EMAILS (FIXED) ======================
+    # --- TAB 2: MAILS ---
     with tab_mail:
-        c_mail1, c_mail2 = st.columns([1, 3])
-        
+        c_m1, c_m2 = st.columns([1, 3])
         sorted_teachers = sorted(list(teachers_set))
         
-        with c_mail1:
-            st.markdown("### Paramètres")
-            if not sorted_teachers:
-                st.warning("Aucun enseignant.")
-                chosen_teacher = None
+        with c_m1:
+            if sorted_teachers:
+                chosen_teacher = st.selectbox("Destinataire", sorted_teachers)
+                politesse = st.radio("Ton", ["Tutoiement", "Vouvoiement"])
             else:
-                chosen_teacher = st.selectbox("Enseignant", sorted_teachers)
-            
-            politesse = st.radio("Ton", ["Tutoiement", "Vouvoiement"])
-            
-        with c_mail2:
+                chosen_teacher = None
+                st.info("Pas d'enseignants.")
+        
+        with c_m2:
             if chosen_teacher:
-                # Filtre et Tri
-                teacher_evs = [e for e in all_events_flat if chosen_teacher in e['teachers']]
+                # Filtrage global
+                t_evs = [e for e in all_events_flat if chosen_teacher in e['teachers']]
                 
-                if not teacher_evs:
-                    st.warning("Aucun cours trouvé pour cet enseignant.")
+                # Parsing Nom Prénom pour politesse
+                # Format supposé: NOM, Prénom (selon regex source) ou NOM Prénom
+                clean_name = chosen_teacher.replace(',', '')
+                parts = clean_name.split()
+                
+                if politesse == "Tutoiement":
+                    # Prénom (dernier élément souvent ou 2eme)
+                    prenom = parts[1] if len(parts) > 1 else parts[0]
+                    intro = f"Bonjour {prenom},\n\nVoici le récapitulatif de tes interventions :"
+                    closing = "Bien à toi,"
                 else:
-                    # 1. Groupement par Matière
-                    grouped_by_subject = {}
-                    for ev in teacher_evs:
-                        grouped_by_subject.setdefault(ev['summary'], []).append(ev)
-                    
-                    # Construction du mail
-                    parts = chosen_teacher.split()
-                    first_name = parts[1] if len(parts) > 1 else chosen_teacher
-                    
-                    if politesse == "Tutoiement":
-                        header = f"Bonjour {first_name},\n\nVoici tes prochaines interventions :"
-                        footer = "Bien à toi,"
-                    else:
-                        header = "Bonjour,\n\nVeuillez trouver ci-dessous le détail de vos interventions :"
-                        footer = "Cordialement,"
-                    
-                    body_content = ""
-                    months = {1:'janvier', 2:'février', 3:'mars', 4:'avril', 5:'mai', 6:'juin', 7:'juillet', 8:'août', 9:'septembre', 10:'octobre', 11:'novembre', 12:'décembre'}
-                    days = {0:'Lundi', 1:'Mardi', 2:'Mercredi', 3:'Jeudi', 4:'Vendredi', 5:'Samedi', 6:'Dimanche'}
+                    # Nom de famille (1er élément)
+                    nom = parts[0]
+                    intro = f"Bonjour M./Mme {nom},\n\nVeuillez trouver ci-dessous le récapitulatif de vos interventions :"
+                    closing = "Cordialement,"
+                
+                body = ""
+                months = {1:'janvier', 2:'février', 3:'mars', 4:'avril', 5:'mai', 6:'juin', 7:'juillet', 8:'août', 9:'septembre', 10:'octobre', 11:'novembre', 12:'décembre'}
+                days = {0:'Lundi', 1:'Mardi', 2:'Mercredi', 3:'Jeudi', 4:'Vendredi', 5:'Samedi', 6:'Dimanche'}
 
-                    for subject, evs_list in grouped_by_subject.items():
-                        # Tri des événements de la matière par date
-                        evs_list.sort(key=lambda x: x['start'])
-                        
-                        body_content += f"\nEn {subject} :\n"
-                        
-                        for ev in evs_list:
+                # Boucle sur Promos (P1 puis P2)
+                promos_present = sorted(list(set(e['promo_label'] for e in t_evs)))
+                
+                total_h_global = 0
+                
+                for promo in promos_present:
+                    # Events de ce prof pour cette promo
+                    p_evs = [e for e in t_evs if e['promo_label'] == promo]
+                    if not p_evs: continue
+                    
+                    body += f"\nPour la promo **{promo}** :\n"
+                    
+                    # Groupement par matière
+                    by_subj = {}
+                    for e in p_evs:
+                        by_subj.setdefault(e['summary'], []).append(e)
+                    
+                    for subj, ev_list in by_subj.items():
+                        ev_list.sort(key=lambda x: x['start'])
+                        body += f"\nMatière : {subj}\n"
+                        for ev in ev_list:
                             dt = ev['start']
-                            day_str = f"{days[dt.weekday()]} {dt.day} {months[dt.month]} {dt.year}"
+                            day_str = f"{days[dt.weekday()]} {dt.day} {months[dt.month]}"
                             h_start = dt.strftime("%Hh%M")
                             h_end = ev['end'].strftime("%Hh%M")
+                            dur = (ev['end'] - ev['start']).total_seconds()/3600
+                            total_h_global += dur
                             
-                            # Logique Groupe "Intelligente"
-                            # Si 2 groupes (G1, G2) souvent présents, c'est la promo entière -> on affiche rien ou Promo
-                            # Si un seul groupe spécifique -> on l'affiche
-                            # On récupère aussi le nom de la feuille (EDT P1)
-                            promo_name = ev['source_sheet']
+                            # Gestion Groupe
+                            grp_txt = ""
+                            if ev['groups'] and len(ev['groups']) == 1:
+                                grp_txt = f" ({ev['groups'][0]})"
                             
-                            grp_display = ""
-                            if ev['groups']:
-                                # Si un seul groupe est mentionné, on le précise. Sinon on suppose promo entière
-                                if len(ev['groups']) == 1:
-                                    grp_display = f" ({ev['groups'][0]})"
-                            
-                            # Format demandé : dates + heures (promo + groupe si unique)
-                            body_content += f"{day_str} de {h_start} à {h_end} ({promo_name}{grp_display})\n"
-                    
-                    total_h = sum([(e['end'] - e['start']).total_seconds()/3600 for e in teacher_evs])
-                    
-                    final_mail = f"{header}\n{body_content}\nTotal planifié : {total_h:g} heures.\n\n{footer}"
-                    
-                    st.text_area("Texte généré (Copier-coller)", value=final_mail, height=500)
-
-    # ====================== TAB 3: RÉCAPITULATIFS (RESTORED) ======================
-    with tab_stats:
-        st.markdown("### Analyse détaillée")
-        stat_mode = st.radio("Type de vue", ["Par Matière", "Par Enseignant"], horizontal=True)
-        
-        # [cite_start]Helper pour aplatir [cite: 114]
-        def flatten_for_display(events_list):
-            rows = []
-            for ev in events_list:
-                rows.append({
-                    "Promo": ev['source_sheet'],
-                    "Date": ev['start'].strftime("%d/%m/%Y"),
-                    "Heure Début": ev['start'].strftime("%H:%M"),
-                    "Heure Fin": ev['end'].strftime("%H:%M"),
-                    "Matière": ev['summary'],
-                    "Enseignant(s)": ", ".join(ev['teachers']),
-                    "Groupes": ", ".join(ev['groups'])
-                })
-            return pd.DataFrame(rows)
-
-        if stat_mode == "Par Matière":
-            sel_subj = st.selectbox("Choisir une matière", sorted(list(subjects_set)))
-            if sel_subj:
-                filtered = [e for e in all_events_flat if e['summary'] == sel_subj]
-                st.dataframe(flatten_for_display(filtered), use_container_width=True)
+                            body += f"- {day_str} de {h_start} à {h_end}{grp_txt}\n"
                 
-        elif stat_mode == "Par Enseignant":
-            sel_teach = st.selectbox("Choisir un enseignant", sorted_teachers)
-            if sel_teach:
-                filtered = [e for e in all_events_flat if sel_teach in e['teachers']]
-                st.dataframe(flatten_for_display(filtered), use_container_width=True)
+                final_txt = f"{intro}\n{body}\nTotal planifié : {total_h_global:g} heures.\n\n{closing}"
+                st.text_area("Aperçu", value=final_txt, height=500)
 
-    # ====================== TAB 4: EXAMENS (NEW) ======================
+    # --- TAB 3: RÉCAPITULATIFS ---
+    with tab_stats:
+        st.markdown("### Analyse")
+        
+        # Séparation P1 / P2
+        tabs_promo = st.tabs(list(events_map.keys()))
+        
+        for i, promo in enumerate(events_map.keys()):
+            with tabs_promo[i]:
+                evs_promo = events_map[promo]
+                
+                mode = st.radio(f"Vue {promo}", ["Par Matière", "Par Enseignant"], key=f"rad_{promo}", horizontal=True)
+                
+                if mode == "Par Matière":
+                    subjs = sorted(list(set(e['summary'] for e in evs_promo)))
+                    sel = st.selectbox(f"Matière ({promo})", subjs, key=f"sb_m_{promo}")
+                    if sel:
+                        data = []
+                        for e in evs_promo:
+                            if e['summary'] == sel:
+                                data.append({
+                                    "Date": e['start'].strftime("%d/%m/%Y"),
+                                    "Heures": f"{e['start'].strftime('%H:%M')} - {e['end'].strftime('%H:%M')}",
+                                    "Enseignant": ", ".join(e['teachers']),
+                                    "Groupes": ", ".join(e['groups'])
+                                })
+                        st.dataframe(pd.DataFrame(data), use_container_width=True)
+                
+                else:
+                    teachs = sorted(list(set(t for e in evs_promo for t in e['teachers'])))
+                    sel = st.selectbox(f"Enseignant ({promo})", teachs, key=f"sb_t_{promo}")
+                    if sel:
+                        data = []
+                        for e in evs_promo:
+                            if sel in e['teachers']:
+                                data.append({
+                                    "Date": e['start'].strftime("%d/%m/%Y"),
+                                    "Heures": f"{e['start'].strftime('%H:%M')} - {e['end'].strftime('%H:%M')}",
+                                    "Matière": e['summary'],
+                                    "Groupes": ", ".join(e['groups'])
+                                })
+                        st.dataframe(pd.DataFrame(data), use_container_width=True)
+
+    # --- TAB 4: EXAMENS ---
     with tab_exam:
         st.markdown("### 🎓 Calendrier des Examens")
-        st.write("Evénements contenant 'examen', 'ds', 'partiel' dans le titre ou la description.")
         
-        if not exam_events:
-            st.info("Aucun examen détecté.")
-        else:
-            # Tri par date
-            exam_events.sort(key=lambda x: x['start'])
-            
-            for exam in exam_events:
-                dt = exam['start']
-                with st.expander(f"{dt.strftime('%d/%m')} - {exam['summary']} ({exam['source_sheet']})"):
-                    st.write(f"**Horaire :** {dt.strftime('%H:%M')} - {exam['end'].strftime('%H:%M')}")
-                    st.write(f"**Description :** {exam['description']}")
-                    st.write(f"**Groupes :** {', '.join(exam['groups']) if exam['groups'] else 'Tous'}")
-
-    # ====================== TAB 5: EXPORTS ======================
-    with tab_export:
+        # Filtrage STRICT sur "EXAMEN" dans la description uniquement
+        p1_exams = []
+        p2_exams = []
+        
+        for e in all_events_flat:
+            # Vérification stricte
+            if e['description'] and "EXAMEN" in e['description'].upper():
+                row = {
+                    "Date": e['start'].strftime("%d/%m/%Y"),
+                    "Horaire": f"{e['start'].strftime('%H:%M')} - {e['end'].strftime('%H:%M')}",
+                    "Matière": e['summary'],
+                    "Description": e['description']
+                }
+                if e['promo_label'] == "P1":
+                    p1_exams.append(row)
+                elif e['promo_label'] == "P2":
+                    p2_exams.append(row)
+        
         c_ex1, c_ex2 = st.columns(2)
         with c_ex1:
-            st.markdown("#### Par Promo")
-            for sheet in promo_sheets:
-                evs = events_map.get(sheet, [])
-                if evs:
-                    ics = generate_ics(evs)
-                    st.download_button(f"📅 {sheet}.ics", data=ics, file_name=f"{sheet}.ics", mime="text/calendar")
+            st.markdown("#### Promo P1")
+            if p1_exams:
+                st.dataframe(pd.DataFrame(p1_exams), hide_index=True)
+            else:
+                st.info("Aucun examen détecté (mot-clé 'EXAMEN' dans description).")
         
         with c_ex2:
-            st.markdown("#### Par Enseignant")
-            sel_t = st.multiselect("Enseignants", sorted_teachers)
-            if sel_t:
-                f_evs = [e for e in all_events_flat if any(t in e['teachers'] for t in sel_t)]
-                if st.button("Générer ICS Enseignant"):
-                    ics = generate_ics(f_evs)
-                    st.download_button("📅 Télécharger", data=ics, file_name="Planning_Enseignants.ics", mime="text/calendar")
+            st.markdown("#### Promo P2")
+            if p2_exams:
+                st.dataframe(pd.DataFrame(p2_exams), hide_index=True)
+            else:
+                st.info("Aucun examen détecté.")
 
-    # ====================== TAB 6: MAQUETTE ======================
+    # --- TAB 5: EXPORTS ---
+    with tab_export:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("#### Par Promo")
+            for promo, evs in events_map.items():
+                if evs:
+                    ics = generate_ics(evs)
+                    st.download_button(f"📥 {promo}.ics", data=ics, file_name=f"{promo}.ics", mime="text/calendar")
+        with c2:
+            st.markdown("#### Par Enseignant")
+            if sorted_teachers:
+                sel = st.multiselect("Choix", sorted_teachers, key="exp_sel")
+                if st.button("Générer"):
+                    evs = [e for e in all_events_flat if any(t in e['teachers'] for t in sel)]
+                    ics = generate_ics(evs)
+                    st.download_button("📥 Planning_Perso.ics", data=ics, file_name="planning.ics", mime="text/calendar")
+
+    # --- TAB 6: MAQUETTE ---
     with tab_maquette:
-        if not maquette_sheet:
-            st.warning("Feuille 'Maquette' introuvable.")
-        else:
-            # [cite_start]Lecture Maquette simplifiée [cite: 108]
+        if maquette_sheet:
+            # [cite_start]Lecture Maquette [cite: 101]
             mq_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=maquette_sheet, header=None, engine='openpyxl')
             rows_mq = []
             if mq_df.shape[1] > 12:
                 for i in range(len(mq_df)):
-                    subj = mq_df.iat[i, 2] # Col C
-                    tgt = mq_df.iat[i, 12] # Col M
+                    subj = mq_df.iat[i, 2]
+                    tgt = mq_df.iat[i, 12]
                     if pd.notna(subj) and str(subj).strip():
-                        try: t_val = float(tgt)
-                        except: t_val = 0
-                        rows_mq.append({'Matière': str(subj).strip(), 'Cible': t_val})
+                        try: val = float(tgt)
+                        except: val = 0
+                        rows_mq.append({'Matière': str(subj).strip(), 'Cible': val})
+            df_mq = pd.DataFrame(rows_mq)
             
-            df_maquette = pd.DataFrame(rows_mq)
+            p_comp = st.selectbox("Comparer Promo", list(events_map.keys()))
             
-            comp_promo = st.selectbox("Comparer avec", promo_sheets)
-            real_hours = {}
-            for ev in events_map.get(comp_promo, []):
-                d = (ev['end'] - ev['start']).total_seconds() / 3600
-                real_hours[ev['summary']] = real_hours.get(ev['summary'], 0) + d
+            real = {}
+            for e in events_map.get(p_comp, []):
+                dur = (e['end'] - e['start']).total_seconds()/3600
+                real[e['summary']] = real.get(e['summary'], 0) + dur
             
-            comp_data = []
-            for _, row in df_maquette.iterrows():
-                m = row['Matière']
-                cible = row['Cible']
-                real = real_hours.get(m, 0)
-                diff = real - cible
-                comp_data.append({"Matière": m, "Prévu": cible, "Réel": round(real, 2), "Ecart": round(diff, 2)})
+            res = []
+            for _, r in df_mq.iterrows():
+                m = r['Matière']
+                c = r['Cible']
+                r_val = real.get(m, 0)
+                res.append({"Matière": m, "Prévu": c, "Réel": round(r_val, 2), "Ecart": round(r_val - c, 2)})
             
-            res_df = pd.DataFrame(comp_data)
+            df_res = pd.DataFrame(res)
             
-            # Style Jaune/Noir sur les écarts
-            def color_diff(val):
-                if val < -2: color = '#FF4B4B' # Rouge Streamlit
-                elif val < 0: color = '#FFA500' # Orange
-                else: color = '#00C851' # Vert
-                return f'color: {color}; font-weight: bold'
-            
-            st.dataframe(res_df.style.applymap(color_diff, subset=['Ecart']), use_container_width=True)
-
-else:
-    st.info("👆 En attente de fichier...")
+            def style_ecart(v):
+                if v < -2: return 'color: red; font-weight: bold'
+                if v < 0: return 'color: orange'
+                return 'color: green'
+                
+            st.dataframe(df_res.style.applymap(style_ecart, subset=['Ecart']), use_container_width=True)
+        else:
+            st.warning("Pas de feuille Maquette.")
