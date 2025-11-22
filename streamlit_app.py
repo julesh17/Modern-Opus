@@ -11,9 +11,9 @@ from icalendar import Calendar, Event, Timezone, TimezoneStandard, TimezoneDayli
 from streamlit_calendar import calendar as st_calendar
 
 # ==============================================================================
-# 1. CONFIGURATION & DESIGN "APPLE x CESI"
+# 1. CONFIGURATION & DESIGN "CESI x APPLE"
 # ==============================================================================
-st.set_page_config(page_title="Modern Opus", page_icon="📅", layout="wide")
+st.set_page_config(page_title="Modern Opus", page_icon="🎓", layout="wide")
 
 # Palette CESI & Apple Style
 CESI_YELLOW = "#FFC20E" 
@@ -23,7 +23,7 @@ WHITE = "#FFFFFF"
 
 st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
     /* Global Reset */
     html, body, [class*="css"] {{
@@ -32,20 +32,44 @@ st.markdown(f"""
         color: {CESI_BLACK};
     }}
     
+    /* STYLE CESI : Surlignage Jaune (Tags) */
+    .cesi-tag {{
+        background-color: {CESI_YELLOW};
+        color: {CESI_BLACK};
+        font-weight: 800;
+        padding: 2px 8px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        display: inline-block;
+        margin-right: 10px;
+        letter-spacing: 0.5px;
+    }}
+
+    /* STYLE CESI : Soulignement épais (Titres) */
+    .cesi-title {{
+        font-weight: 800;
+        font-size: 2.5rem;
+        color: {CESI_BLACK};
+        position: relative;
+        display: inline-block;
+        margin-bottom: 10px;
+    }}
+    .cesi-title::after {{
+        content: '';
+        display: block;
+        width: 60px;
+        height: 6px;
+        background-color: {CESI_YELLOW};
+        margin-top: 5px;
+    }}
+    
     /* Header Minimaliste */
     .main-header {{
         background-color: {WHITE};
-        padding: 1.5rem 0;
+        padding: 2rem 0;
         border-bottom: 1px solid #E5E5E5;
         margin-bottom: 2rem;
         text-align: center;
-    }}
-    .main-header h1 {{
-        font-weight: 700;
-        font-size: 2.2rem;
-        margin: 0;
-        letter-spacing: -0.5px;
-        color: {CESI_BLACK};
     }}
     
     /* Cards Metrics (Apple Style) */
@@ -53,19 +77,23 @@ st.markdown(f"""
         background-color: {WHITE};
         border-radius: 12px;
         padding: 1.5rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         text-align: center;
         border: 1px solid #EAEAEA;
+        transition: transform 0.2s;
+    }}
+    .metric-card:hover {{
+        transform: translateY(-2px);
     }}
     .metric-value {{
         font-size: 2rem;
-        font-weight: 700;
+        font-weight: 800;
         color: {CESI_BLACK};
     }}
     .metric-label {{
         font-size: 0.85rem;
-        font-weight: 500;
-        color: #86868b; /* Apple Gray Text */
+        font-weight: 600;
+        color: #86868b;
         text-transform: uppercase;
         margin-top: 5px;
     }}
@@ -77,42 +105,34 @@ st.markdown(f"""
         padding-bottom: 10px;
     }}
     .stTabs [data-baseweb="tab"] {{
-        height: 40px;
+        height: 45px;
         background-color: {WHITE};
-        border-radius: 8px;
+        border-radius: 6px;
         color: #1d1d1f;
-        font-weight: 500;
+        font-weight: 600;
         border: 1px solid #E5E5E5;
         padding: 0 20px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }}
     .stTabs [aria-selected="true"] {{
-        background-color: {CESI_YELLOW};
-        color: {CESI_BLACK};
-        border-color: {CESI_YELLOW};
-        font-weight: 600;
-    }}
-
-    /* Input & Select boxes */
-    .stSelectbox > div > div {{
-        border-radius: 8px;
-        border: 1px solid #d2d2d7;
+        background-color: {CESI_BLACK};
+        color: {WHITE};
+        border-color: {CESI_BLACK};
     }}
 
     /* Buttons */
     .stButton button {{
         background-color: {CESI_BLACK};
         color: {WHITE};
-        border-radius: 8px;
-        font-weight: 500;
-        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 600;
+        padding: 0.6rem 1.2rem;
         border: none;
-        transition: transform 0.1s ease;
+        transition: all 0.2s ease;
     }}
     .stButton button:hover {{
-        background-color: #333333;
+        background-color: {CESI_YELLOW};
+        color: {CESI_BLACK};
         transform: scale(1.02);
-        color: {WHITE};
     }}
     
     /* Dataframes clean */
@@ -120,6 +140,7 @@ st.markdown(f"""
         border: 1px solid #E5E5E5;
         border-radius: 8px;
         overflow: hidden;
+        background-color: white;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -334,7 +355,11 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
             
     return results
 
-def generate_ics(events, tzname='Europe/Paris'):
+def generate_ics(events, tzname='Europe/Paris', include_prefix=False):
+    """ 
+    Génère l'ICS.
+    Si include_prefix=True (pour exports enseignants), ajoute [P1 G 1] au titre.
+    """
     cal = Calendar()
     cal.add('prodid', '-//Modern Opus//FR')
     cal.add('version', '2.0')
@@ -359,7 +384,26 @@ def generate_ics(events, tzname='Europe/Paris'):
 
     for ev in events:
         e = Event()
-        e.add('summary', ev['summary'])
+        
+        # Gestion du titre [P1 G 1] Matière pour l'export enseignant
+        summary_text = ev['summary']
+        if include_prefix:
+            parts = []
+            # Ajout Promo
+            if ev.get('promo_label'):
+                parts.append(ev['promo_label'])
+            # Ajout Groupes
+            if ev.get('groups'):
+                # On prend les groupes tels quels : "G 1", "G 2"
+                # Si plusieurs groupes, on les joint
+                parts.extend(ev['groups'])
+            
+            if parts:
+                prefix = f"[{' '.join(parts)}] "
+                summary_text = prefix + summary_text
+
+        e.add('summary', summary_text)
+        
         start_dt = ev['start']
         end_dt = ev['end']
         if start_dt.tzinfo is None: start_dt = timezone.localize(start_dt)
@@ -383,7 +427,7 @@ def generate_ics(events, tzname='Europe/Paris'):
 # 3. INTERFACE
 # ==============================================================================
 
-st.markdown('<div class="main-header"><h1>Modern Opus</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header"><div class="cesi-title">Modern Opus</div><br><span style="color:#666; font-weight:500;">Planification Intelligente</span></div>', unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader("Déposer le fichier Excel", type=['xlsx'])
 
@@ -483,6 +527,8 @@ if uploaded_file:
         sorted_teachers = sorted(list(teachers_set))
         
         with c_m1:
+            st.markdown('<div class="cesi-tag">Configuration</div>', unsafe_allow_html=True)
+            st.write("")
             if sorted_teachers:
                 chosen_teacher = st.selectbox("Destinataire", sorted_teachers)
                 politesse = st.radio("Ton", ["Tutoiement", "Vouvoiement"])
@@ -516,7 +562,8 @@ if uploaded_file:
                     p_evs = [e for e in t_evs if e['promo_label'] == promo]
                     if not p_evs: continue
                     
-                    body += f"\nPour la promo **{promo}** :\n"
+                    # Pas d'étoiles, format texte brut
+                    body += f"\nPour la promo {promo} :\n"
                     by_subj = {}
                     for e in p_evs:
                         by_subj.setdefault(e['summary'], []).append(e)
@@ -539,11 +586,12 @@ if uploaded_file:
                             body += f"- {day_str} de {h_start} à {h_end}{grp_txt}\n"
                 
                 final_txt = f"{intro}\n{body}\nTotal planifié : {total_h_global:g} heures.\n\n{closing}"
-                st.text_area("Aperçu", value=final_txt, height=500)
+                st.text_area("Aperçu (Texte brut pour mail)", value=final_txt, height=500)
 
     # --- TAB 3: RÉCAPITULATIFS ---
     with tab_stats:
-        st.markdown("### Analyse")
+        st.markdown('<div class="cesi-tag">Analyse</div>', unsafe_allow_html=True)
+        st.write("")
         tabs_promo = st.tabs(list(events_map.keys()))
         
         for i, promo in enumerate(events_map.keys()):
@@ -583,7 +631,9 @@ if uploaded_file:
 
     # --- TAB 4: EXAMENS ---
     with tab_exam:
-        st.markdown("### 🎓 Calendrier des Examens")
+        st.markdown('<div class="cesi-tag">Examens</div>', unsafe_allow_html=True)
+        st.write("")
+        
         p1_exams = []
         p2_exams = []
         
@@ -606,7 +656,7 @@ if uploaded_file:
             if p1_exams:
                 st.dataframe(pd.DataFrame(p1_exams), hide_index=True)
             else:
-                st.info("Aucun examen détecté (mot-clé 'EXAMEN' dans description).")
+                st.info("Aucun examen détecté.")
         
         with c_ex2:
             st.markdown("#### Promo P2")
@@ -617,24 +667,41 @@ if uploaded_file:
 
     # --- TAB 5: EXPORTS ---
     with tab_export:
+        st.markdown('<div class="cesi-tag">Exports</div>', unsafe_allow_html=True)
+        st.write("")
+        
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("#### Par Promo")
+            st.markdown("#### Par Promo (Global)")
             for promo, evs in events_map.items():
                 if evs:
-                    ics = generate_ics(evs)
+                    # Export standard sans préfixe
+                    ics = generate_ics(evs, include_prefix=False)
                     st.download_button(f"📥 {promo}.ics", data=ics, file_name=f"{promo}.ics", mime="text/calendar")
         with c2:
             st.markdown("#### Par Enseignant")
             if sorted_teachers:
                 sel = st.multiselect("Choix", sorted_teachers, key="exp_sel")
                 if st.button("Générer"):
+                    # Filtrage des events
                     evs = [e for e in all_events_flat if any(t in e['teachers'] for t in sel)]
-                    ics = generate_ics(evs)
-                    st.download_button("📥 Planning_Perso.ics", data=ics, file_name="planning.ics", mime="text/calendar")
+                    
+                    # Génération AVEC PREFIXE [P1 G1]
+                    ics = generate_ics(evs, include_prefix=True)
+                    
+                    # Nom du fichier basé sur le premier enseignant sélectionné
+                    if len(sel) > 0:
+                        # Nettoyage du nom (enlever les espaces) pour le fichier
+                        safe_name = sel[0].replace(" ", "_").replace(",", "")
+                        fname = f"Planning_{safe_name}.ics"
+                    else:
+                        fname = "Planning_Enseignants.ics"
+                        
+                    st.download_button(f"📥 Télécharger {fname}", data=ics, file_name=fname, mime="text/calendar")
 
     # --- TAB 6: MAQUETTE ---
     with tab_maquette:
+        st.markdown('<div class="cesi-tag">Suivi Pédagogique</div>', unsafe_allow_html=True)
         if maquette_sheet:
             mq_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=maquette_sheet, header=None, engine='openpyxl')
             rows_mq = []
@@ -677,13 +744,14 @@ else:
     # État initial (sans fichier)
     st.markdown("""
     <div style="text-align: center; margin-top: 50px; padding: 40px; background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E5E5E5;">
-        <h3 style="color: #000000; margin-bottom: 20px;">👋 Bienvenue sur Modern Opus</h3>
-        <p style="color: #666666; font-size: 1.1em;">
-            Pour commencer, déposez votre fichier Excel d'emploi du temps ci-dessus.<br>
-            L'application détectera automatiquement les promos (P1/P2), les enseignants et les examens.
+        <div class="cesi-title">Modern Opus</div>
+        <p style="color: #666666; font-size: 1.1em; margin-top:20px;">
+            Déposez votre fichier Excel pour générer les plannings, mails et analyses.
         </p>
-        <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
-            Formats supportés : .xlsx avec feuilles "EDT P1" / "EDT P2"
+        <div style="margin-top: 30px;">
+            <span class="cesi-tag">P1</span>
+            <span class="cesi-tag">P2</span>
+            <span class="cesi-tag">Maquette</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
