@@ -15,8 +15,8 @@ from streamlit_calendar import calendar as st_calendar
 # ==============================================================================
 st.set_page_config(page_title="Modern Opus", page_icon="🎓", layout="wide")
 
-# Palette CESI & Apple Style
-CESI_YELLOW = "#FFC20E" 
+# Palette CESI (Nouveau Jaune) & Apple Style
+CESI_YELLOW = "#f7e34f" 
 CESI_BLACK = "#000000"
 APPLE_GRAY = "#F5F5F7"
 WHITE = "#FFFFFF"
@@ -394,8 +394,6 @@ def generate_ics(events, tzname='Europe/Paris', include_prefix=False):
                 parts.append(ev['promo_label'])
             # Ajout Groupes
             if ev.get('groups'):
-                # On prend les groupes tels quels : "G 1", "G 2"
-                # Si plusieurs groupes, on les joint
                 parts.extend(ev['groups'])
             
             if parts:
@@ -497,9 +495,9 @@ if uploaded_file:
                     "title": ev['summary'],
                     "start": ev['start'].isoformat(),
                     "end": ev['end'].isoformat(),
-                    "backgroundColor": "#FFC20E",
-                    "borderColor": "#FFC20E",
-                    "textColor": "#000000",
+                    "backgroundColor": CESI_YELLOW,
+                    "borderColor": CESI_YELLOW,
+                    "textColor": CESI_BLACK,
                     "extendedProps": {"description": f"{', '.join(ev['teachers'])}"}
                 })
             
@@ -569,9 +567,33 @@ if uploaded_file:
                         by_subj.setdefault(e['summary'], []).append(e)
                     
                     for subj, ev_list in by_subj.items():
+                        # Fusion des séances consécutives (Même matière, même journée, fin == début)
+                        # 1. Tri
                         ev_list.sort(key=lambda x: x['start'])
+                        
+                        # 2. Fusion
+                        merged_events = []
+                        if ev_list:
+                            curr = ev_list[0].copy() # Copy to avoid modifying original data
+                            
+                            for i in range(1, len(ev_list)):
+                                nxt = ev_list[i]
+                                # Si la fin de l'actuel == début du suivant (continuité parfaite)
+                                if curr['end'] == nxt['start']:
+                                    # On étend la fin
+                                    curr['end'] = nxt['end']
+                                    # On fusionne les groupes (union)
+                                    g_curr = set(curr.get('groups', []))
+                                    g_nxt = set(nxt.get('groups', []))
+                                    curr['groups'] = sorted(list(g_curr | g_nxt))
+                                else:
+                                    merged_events.append(curr)
+                                    curr = nxt.copy()
+                            merged_events.append(curr)
+                        
                         body += f"\nMatière : {subj}\n"
-                        for ev in ev_list:
+                        
+                        for ev in merged_events:
                             dt = ev['start']
                             day_str = f"{days[dt.weekday()]} {dt.day} {months[dt.month]}"
                             h_start = dt.strftime("%Hh%M")
