@@ -1,1 +1,7 @@
 streamlit
+pandas
+openpyxl
+icalendar
+python-dateutil
+pytz
+streamlit-calendar
