@@ -697,3 +697,17 @@ if uploaded_file:
             st.dataframe(df_res.style.applymap(style_ecart, subset=['Ecart']), use_container_width=True)
         else:
             st.warning("Pas de feuille Maquette.")
+else:
+    # État initial (sans fichier)
+    st.markdown("""
+    <div style="text-align: center; margin-top: 50px; padding: 40px; background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E5E5E5;">
+        <h3 style="color: #000000; margin-bottom: 20px;">👋 Bienvenue sur Modern Opus</h3>
+        <p style="color: #666666; font-size: 1.1em;">
+            Pour commencer, déposez votre fichier Excel d'emploi du temps ci-dessus.<br>
+            L'application détectera automatiquement les promos (P1/P2), les enseignants et les examens.
+        </p>
+        <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
+            Formats supportés : .xlsx avec feuilles "EDT P1" / "EDT P2"
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
