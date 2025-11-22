@@ -504,7 +504,7 @@ if uploaded_file:
         
         with c_mail1:
             chosen_teacher = st.selectbox("Destinataire (Enseignant)", sorted(list(teachers_set)))
-            politeness = st.radio("Formule de politesse", ["Tutoiement", "Vouvoiement"])
+            politesse = st.radio("Formule de politesse", ["Tutoiement", "Vouvoiement"])
             
             # Filtre events
             teacher_evs = [e for e in all_events_flat if chosen_teacher in e['teachers']]
