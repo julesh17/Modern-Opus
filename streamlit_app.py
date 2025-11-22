@@ -128,7 +128,6 @@ st.markdown(f"""
 # 2. LOGIQUE MÉTIER (ROBUSTE & SANS RÉGRESSION)
 # ==============================================================================
 
-# [cite_start]--- Utilities [cite: 1, 49] ---
 def normalize_group_label(x):
     if x is None: return None
     try:
@@ -176,7 +175,6 @@ def to_date(x):
     except: return None
 
 def get_merged_map_from_bytes(xls_bytes, sheet_name):
-    [cite_start]# [cite: 56]
     wb = load_workbook(io.BytesIO(xls_bytes), data_only=True)
     ws = wb[sheet_name]
     merged_map = {}
@@ -189,7 +187,7 @@ def get_merged_map_from_bytes(xls_bytes, sheet_name):
 
 @st.cache_data(show_spinner=False)
 def parse_excel_engine(file_content, sheet_names_to_scan):
-    [cite_start]""" Moteur de parsing unifié [cite: 58-96] """
+    """ Moteur de parsing unifié """
     results = {}
     
     for sheet in sheet_names_to_scan:
@@ -224,7 +222,7 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                         summary_str = str(summary).strip()
                         if not summary_str: continue
                         
-                        # [cite_start]Teachers [cite: 65] + Correction bug float
+                        # Teachers
                         teachers = []
                         if (r+2) < nrows:
                             for off in range(2, 6):
@@ -329,7 +327,6 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
                     'groups': sorted(list(v['groups']))
                 })
             
-            # Stockage avec la clé simplifiée "P1" ou "P2"
             results[promo_name] = final_events
             
         except Exception as e:
@@ -338,7 +335,6 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
     return results
 
 def generate_ics(events, tzname='Europe/Paris'):
-    [cite_start]# [cite: 38]
     cal = Calendar()
     cal.add('prodid', '-//Modern Opus//FR')
     cal.add('version', '2.0')
@@ -447,19 +443,17 @@ if uploaded_file:
     with tab_cal:
         col_sel, col_view = st.columns([1, 4])
         with col_sel:
-            # Sélecteur de promo basé sur les clés du dictionnaire (P1, P2)
             cal_promo = st.selectbox("Promo", list(events_map.keys()), key="cal_p")
             view_mode = st.radio("Vue", ["Semaine", "Mois"])
         
         with col_view:
             cal_events = []
-            # Couleurs plus modernes et claires
             for ev in events_map.get(cal_promo, []):
                 cal_events.append({
-                    "title": ev['summary'], # Plus clair, juste la matière
+                    "title": ev['summary'],
                     "start": ev['start'].isoformat(),
                     "end": ev['end'].isoformat(),
-                    "backgroundColor": "#FFC20E", # Jaune CESI
+                    "backgroundColor": "#FFC20E",
                     "borderColor": "#FFC20E",
                     "textColor": "#000000",
                     "extendedProps": {"description": f"{', '.join(ev['teachers'])}"}
@@ -498,21 +492,15 @@ if uploaded_file:
         
         with c_m2:
             if chosen_teacher:
-                # Filtrage global
                 t_evs = [e for e in all_events_flat if chosen_teacher in e['teachers']]
-                
-                # Parsing Nom Prénom pour politesse
-                # Format supposé: NOM, Prénom (selon regex source) ou NOM Prénom
                 clean_name = chosen_teacher.replace(',', '')
                 parts = clean_name.split()
                 
                 if politesse == "Tutoiement":
-                    # Prénom (dernier élément souvent ou 2eme)
                     prenom = parts[1] if len(parts) > 1 else parts[0]
                     intro = f"Bonjour {prenom},\n\nVoici le récapitulatif de tes interventions :"
                     closing = "Bien à toi,"
                 else:
-                    # Nom de famille (1er élément)
                     nom = parts[0]
                     intro = f"Bonjour M./Mme {nom},\n\nVeuillez trouver ci-dessous le récapitulatif de vos interventions :"
                     closing = "Cordialement,"
@@ -521,19 +509,14 @@ if uploaded_file:
                 months = {1:'janvier', 2:'février', 3:'mars', 4:'avril', 5:'mai', 6:'juin', 7:'juillet', 8:'août', 9:'septembre', 10:'octobre', 11:'novembre', 12:'décembre'}
                 days = {0:'Lundi', 1:'Mardi', 2:'Mercredi', 3:'Jeudi', 4:'Vendredi', 5:'Samedi', 6:'Dimanche'}
 
-                # Boucle sur Promos (P1 puis P2)
                 promos_present = sorted(list(set(e['promo_label'] for e in t_evs)))
-                
                 total_h_global = 0
                 
                 for promo in promos_present:
-                    # Events de ce prof pour cette promo
                     p_evs = [e for e in t_evs if e['promo_label'] == promo]
                     if not p_evs: continue
                     
                     body += f"\nPour la promo **{promo}** :\n"
-                    
-                    # Groupement par matière
                     by_subj = {}
                     for e in p_evs:
                         by_subj.setdefault(e['summary'], []).append(e)
@@ -549,7 +532,6 @@ if uploaded_file:
                             dur = (ev['end'] - ev['start']).total_seconds()/3600
                             total_h_global += dur
                             
-                            # Gestion Groupe
                             grp_txt = ""
                             if ev['groups'] and len(ev['groups']) == 1:
                                 grp_txt = f" ({ev['groups'][0]})"
@@ -562,14 +544,11 @@ if uploaded_file:
     # --- TAB 3: RÉCAPITULATIFS ---
     with tab_stats:
         st.markdown("### Analyse")
-        
-        # Séparation P1 / P2
         tabs_promo = st.tabs(list(events_map.keys()))
         
         for i, promo in enumerate(events_map.keys()):
             with tabs_promo[i]:
                 evs_promo = events_map[promo]
-                
                 mode = st.radio(f"Vue {promo}", ["Par Matière", "Par Enseignant"], key=f"rad_{promo}", horizontal=True)
                 
                 if mode == "Par Matière":
@@ -605,13 +584,10 @@ if uploaded_file:
     # --- TAB 4: EXAMENS ---
     with tab_exam:
         st.markdown("### 🎓 Calendrier des Examens")
-        
-        # Filtrage STRICT sur "EXAMEN" dans la description uniquement
         p1_exams = []
         p2_exams = []
         
         for e in all_events_flat:
-            # Vérification stricte
             if e['description'] and "EXAMEN" in e['description'].upper():
                 row = {
                     "Date": e['start'].strftime("%d/%m/%Y"),
@@ -660,7 +636,6 @@ if uploaded_file:
     # --- TAB 6: MAQUETTE ---
     with tab_maquette:
         if maquette_sheet:
-            # [cite_start]Lecture Maquette [cite: 101]
             mq_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=maquette_sheet, header=None, engine='openpyxl')
             rows_mq = []
             if mq_df.shape[1] > 12:
@@ -697,6 +672,7 @@ if uploaded_file:
             st.dataframe(df_res.style.applymap(style_ecart, subset=['Ecart']), use_container_width=True)
         else:
             st.warning("Pas de feuille Maquette.")
+
 else:
     # État initial (sans fichier)
     st.markdown("""
