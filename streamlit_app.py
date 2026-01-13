@@ -420,6 +420,18 @@ def generate_ics(events, tzname='Europe/Paris', include_prefix=False):
         cal.add_component(e)
         
     return cal.to_ical()
+    
+    def event_matches_group(ev, selected_group):
+        """
+        selected_group: "Tous", "G 1", "G 2"
+        """
+        if selected_group == "Tous":
+            return True
+    
+        ev_groups = {g.replace(" ", "").upper() for g in ev.get("groups", [])}
+        sel = selected_group.replace(" ", "").upper()
+    
+        return sel in ev_groups
 
 # ==============================================================================
 # 3. INTERFACE
@@ -737,13 +749,35 @@ if uploaded_file:
                         rows_mq.append({'Matière': str(subj).strip(), 'Cible': val})
             df_mq = pd.DataFrame(rows_mq)
             
-            p_comp = st.selectbox("Comparer Promo", list(events_map.keys()))
+            #p_comp = st.selectbox("Comparer Promo", list(events_map.keys()))
+
+            c_sel1, c_sel2 = st.columns([2, 1])
             
+            with c_sel1:
+                p_comp = st.selectbox("Comparer Promo", list(events_map.keys()))
+            
+            with c_sel2:
+                g_comp = st.selectbox(
+                    "Groupe",
+                    ["Tous", "G 1", "G 2"],
+                    index=0
+                )
+
+            
+            #real = {}
+            #for e in events_map.get(p_comp, []):
+                #dur = (e['end'] - e['start']).total_seconds()/3600
+                #real[e['summary']] = real.get(e['summary'], 0) + dur
+
             real = {}
+
             for e in events_map.get(p_comp, []):
-                dur = (e['end'] - e['start']).total_seconds()/3600
-                real[e['summary']] = real.get(e['summary'], 0) + dur
+                if not event_matches_group(e, g_comp):
+                    continue
             
+                dur = (e['end'] - e['start']).total_seconds() / 3600
+                real[e['summary']] = real.get(e['summary'], 0) + dur
+
             res = []
             for _, r in df_mq.iterrows():
                 m = r['Matière']
