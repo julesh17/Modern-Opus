@@ -4,4 +4,4 @@ openpyxl
 icalendar
 python-dateutil
 pytz
-streamlit-calendar
+streamlit-calendar==0.0.8
