@@ -721,46 +721,149 @@ if uploaded_file:
                         
                     st.download_button(f"📥 Télécharger {fname}", data=ics, file_name=fname, mime="text/calendar")
 
-    # --- TAB 6: MAQUETTE ---
+    # --- TAB 6: MAQUETTE (LOGIQUE AVANCÉE) ---
     with tab_maquette:
         st.markdown('<div class="cesi-tag">Suivi Pédagogique</div>', unsafe_allow_html=True)
+        
         if maquette_sheet:
-            mq_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=maquette_sheet, header=None, engine='openpyxl')
-            rows_mq = []
-            if mq_df.shape[1] > 12:
-                for i in range(len(mq_df)):
-                    subj = mq_df.iat[i, 2]
-                    tgt = mq_df.iat[i, 12]
+            # 1. Lecture de la maquette brute pour avoir l'ordre et les cibles
+            # Adaptation: on lit la maquette et on crée une structure propre comme dans l'ancienne appli
+            raw_mq_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=maquette_sheet, header=None, engine='openpyxl')
+            
+            # Reconstruction d'un DataFrame propre 'maquette_df' avec subject et target
+            # Hypothèse colonne C (idx 2) = Matière, colonne M (idx 12) = Cible
+            maquette_rows = []
+            if raw_mq_df.shape[1] > 12:
+                for i in range(len(raw_mq_df)):
+                    subj = raw_mq_df.iat[i, 2]
+                    tgt = raw_mq_df.iat[i, 12]
                     if pd.notna(subj) and str(subj).strip():
                         try: val = float(tgt)
-                        except: val = 0
-                        rows_mq.append({'Matière': str(subj).strip(), 'Cible': val})
-            df_mq = pd.DataFrame(rows_mq)
-            
-            p_comp = st.selectbox("Comparer Promo", list(events_map.keys()))
-            
-            real = {}
-            for e in events_map.get(p_comp, []):
-                dur = (e['end'] - e['start']).total_seconds()/3600
-                real[e['summary']] = real.get(e['summary'], 0) + dur
-            
-            res = []
-            for _, r in df_mq.iterrows():
-                m = r['Matière']
-                c = r['Cible']
-                r_val = real.get(m, 0)
-                res.append({"Matière": m, "Prévu": c, "Réel": round(r_val, 2), "Ecart": round(r_val - c, 2)})
-            
-            df_res = pd.DataFrame(res)
-            
-            def style_ecart(v):
-                if v < -2: return 'color: red; font-weight: bold'
-                if v < 0: return 'color: orange'
-                return 'color: green'
+                        except: val = None # None si pas de cible (header ou autre)
+                        maquette_rows.append({'subject': str(subj).strip(), 'target': val})
+            maquette_df = pd.DataFrame(maquette_rows)
+
+            # 2. Sélecteurs Promo & Groupe
+            c_mq1, c_mq2 = st.columns(2)
+            with c_mq1:
+                p_comp = st.selectbox("Comparer Promo (Feuille)", list(events_map.keys()), key="mq_promo")
+            with c_mq2:
+                g_comp = st.selectbox("Sélectionner le groupe", options=['G 1', 'G 2'], index=0, key="mq_group")
+
+            # 3. Logique de filtrage (Legacy)
+            def parse_group_sel(sel):
+                s = sel.strip().upper().replace(' ', '')
+                if s in ['G1','G 1']:
+                    return {'G 1','G1'}
+                if s in ['G2','G 2']:
+                    return {'G 2','G2'}
+                return {sel}
+
+            sel_groups = parse_group_sel(g_comp)
+
+            IGNORE_SUBJECTS = {
+                "erasmus day",
+                "forum international",
+                "période entreprise",
+                "férié",
+                "mission à l'international",
+                "matière",
+                "matières",
+                "divers"
+            }
+
+            # 4. Calcul des heures (Legacy Logic adapted to New Event Structure)
+            def sum_hours_by_subject_and_group(events, groups_filter):
+                totals = {}
+                counts = {}
+                for ev in events:
+                    subj = ev['summary']
+                    if subj and subj.strip().lower() in IGNORE_SUBJECTS:
+                        continue 
+
+                    # Filtrage par groupe
+                    # Dans le parser, ev['groups'] est une liste/set de strings (ex: ['G 1', 'G 2'] ou ['G 1'])
+                    ev_groups_norm = set([g.strip().upper().replace(' ', '') for g in ev.get('groups', [])])
+                    
+                    # Si l'événement n'a pas de groupe assigné (liste vide), on considère souvent que c'est promo entière
+                    # Mais pour coller à la logique stricte demandée :
+                    if not ev.get('groups'):
+                        # Si vide -> Promo entière -> Compte pour G1 et G2
+                        matches = True
+                    else:
+                        # Si groupes définis -> Doit intersecter avec la sélection
+                        tgt_norm = {g.strip().upper().replace(' ', '') for g in groups_filter}
+                        matches = len(ev_groups_norm.intersection(tgt_norm)) > 0
+                    
+                    if not matches:
+                        continue
+
+                    # Durée
+                    delta = (ev['end'] - ev['start']).total_seconds() / 3600.0
+                    totals[subj] = totals.get(subj, 0) + delta
+                    counts[subj] = counts.get(subj, 0) + 1
+                return totals, counts
+
+            evs_target = events_map.get(p_comp, [])
+            totals_by_subject, counts_by_subject = sum_hours_by_subject_and_group(evs_target, sel_groups)
+
+            # 5. Construction du tableau final (basé sur l'ordre maquette)
+            rows_out = []
+            for _, row in maquette_df.iterrows():
+                subj = row['subject']
+                if subj.lower() in IGNORE_SUBJECTS:
+                    continue
+
+                target = row['target']
+                hours = totals_by_subject.get(subj, 0.0)
+                sessions = counts_by_subject.get(subj, 0)
                 
-            st.dataframe(df_res.style.applymap(style_ecart, subset=['Ecart']), use_container_width=True)
+                diff = None
+                if target is not None and not pd.isna(target):
+                    diff = hours - float(target)
+                
+                rows_out.append({
+                    'subject': subj,
+                    'target_hours': target,
+                    'entered_hours': round(hours, 2),
+                    'diff_hours': round(diff, 2) if diff is not None else None,
+                    'sessions_entered': sessions
+                })
+
+            out_df = pd.DataFrame(rows_out, columns=['subject','target_hours','entered_hours','diff_hours','sessions_entered'])
+
+            # 6. Affichage & Styling
+            st.markdown(f"### Résultats pour **{p_comp}** — **{g_comp}**")
+            st.caption("Ordre défini par le fichier Maquette. Les matières ignorées sont masquées.")
+
+            def highlight_row(r):
+                if r['target_hours'] is None or pd.isna(r['target_hours']) or r['target_hours'] == 0:
+                    # Jaune si pas de cible (souvent titre ou optionnel)
+                    if r['entered_hours'] > 0: return ['']*len(r) # Si ya des heures mais pas de cible, on laisse normal ou warning? Le code legacy mettait jaune si target is None
+                    return ['background-color: #fff3cd']*len(r)
+                
+                # Rouge si écart significatif
+                if r['diff_hours'] is not None and abs(r['diff_hours']) > 0.001:
+                    return ['background-color: #f8d7da']*len(r)
+                return ['']*len(r)
+
+            st.dataframe(out_df.style.apply(highlight_row, axis=1), use_container_width=True)
+
+            # 7. Résumé
+            c_r1, c_r2, c_r3 = st.columns(3)
+            total_expected = out_df['target_hours'].sum()
+            total_entered = out_df['entered_hours'].sum()
+            
+            with c_r1:
+                st.metric("Heures Maquette", f"{total_expected:.2f} h")
+            with c_r2:
+                st.metric("Heures Saisies", f"{total_entered:.2f} h")
+            with c_r3:
+                delta = total_entered - total_expected
+                st.metric("Écart Global", f"{delta:+.2f} h", delta_color="inverse")
+
         else:
-            st.warning("Pas de feuille Maquette.")
+            st.warning("Pas de feuille Maquette détectée dans le fichier.")
 
 else:
     # État initial (sans fichier)
