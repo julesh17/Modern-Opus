@@ -574,7 +574,9 @@ if uploaded_file:
                         # 2. Fusion
                         merged_events = []
                         if ev_list:
-                            curr = ev_list[0].copy() # Copy to avoid modifying original data
+                            #curr = ev_list[0].copy() # Copy to avoid modifying original data
+                            import copy
+                            curr = copy.deepcopy(ev_list[0])
                             
                             for i in range(1, len(ev_list)):
                                 nxt = ev_list[i]
@@ -588,7 +590,8 @@ if uploaded_file:
                                     curr['groups'] = sorted(list(g_curr | g_nxt))
                                 else:
                                     merged_events.append(curr)
-                                    curr = nxt.copy()
+                                    # curr = nxt.copy()
+                                    curr = copy.deepcopy(nxt)
                             merged_events.append(curr)
                         
                         body += f"\nMatière : {subj}\n"
