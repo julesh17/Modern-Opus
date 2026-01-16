@@ -567,22 +567,17 @@ if uploaded_file:
                         by_subj.setdefault(e['summary'], []).append(e)
                     
                     for subj, ev_list in by_subj.items():
-                        # Fusion des séances consécutives (Même matière, même journée, fin == début)
-                        # 1. Tri
+                        # Fusion des séances consécutives
                         ev_list.sort(key=lambda x: x['start'])
                         
-                        # 2. Fusion
                         merged_events = []
                         if ev_list:
-                            curr = ev_list[0].copy() # Copy to avoid modifying original data
+                            curr = ev_list[0].copy()
                             
                             for i in range(1, len(ev_list)):
                                 nxt = ev_list[i]
-                                # Si la fin de l'actuel == début du suivant (continuité parfaite)
                                 if curr['end'] == nxt['start']:
-                                    # On étend la fin
                                     curr['end'] = nxt['end']
-                                    # On fusionne les groupes (union)
                                     g_curr = set(curr.get('groups', []))
                                     g_nxt = set(nxt.get('groups', []))
                                     curr['groups'] = sorted(list(g_curr | g_nxt))
@@ -634,7 +629,7 @@ if uploaded_file:
                                     "Enseignant": ", ".join(e['teachers']),
                                     "Groupes": ", ".join(e['groups'])
                                 })
-                        st.dataframe(pd.DataFrame(data), use_container_width=True)
+                        st.dataframe(pd.DataFrame(data), width="stretch")
                 
                 else:
                     teachs = sorted(list(set(t for e in evs_promo for t in e['teachers'])))
@@ -649,7 +644,7 @@ if uploaded_file:
                                     "Matière": e['summary'],
                                     "Groupes": ", ".join(e['groups'])
                                 })
-                        st.dataframe(pd.DataFrame(data), use_container_width=True)
+                        st.dataframe(pd.DataFrame(data), width="stretch")
 
     # --- TAB 4: EXAMENS ---
     with tab_exam:
@@ -676,14 +671,14 @@ if uploaded_file:
         with c_ex1:
             st.markdown("#### Promo P1")
             if p1_exams:
-                st.dataframe(pd.DataFrame(p1_exams), hide_index=True)
+                st.dataframe(pd.DataFrame(p1_exams), hide_index=True, width="stretch")
             else:
                 st.info("Aucun examen détecté.")
         
         with c_ex2:
             st.markdown("#### Promo P2")
             if p2_exams:
-                st.dataframe(pd.DataFrame(p2_exams), hide_index=True)
+                st.dataframe(pd.DataFrame(p2_exams), hide_index=True, width="stretch")
             else:
                 st.info("Aucun examen détecté.")
 
@@ -704,7 +699,10 @@ if uploaded_file:
             st.markdown("#### Par Enseignant")
             if sorted_teachers:
                 sel = st.multiselect("Choix", sorted_teachers, key="exp_sel")
-                if st.button("Générer"):
+                
+                # CORRECTION CRITIQUE : Pas de if st.button("Générer").
+                # Le bouton de téléchargement doit être persistant pour éviter le refresh loop.
+                if sel:
                     # Filtrage des events
                     evs = [e for e in all_events_flat if any(t in e['teachers'] for t in sel)]
                     
@@ -713,7 +711,6 @@ if uploaded_file:
                     
                     # Nom du fichier basé sur le premier enseignant sélectionné
                     if len(sel) > 0:
-                        # Nettoyage du nom (enlever les espaces) pour le fichier
                         safe_name = sel[0].replace(" ", "_").replace(",", "")
                         fname = f"Planning_{safe_name}.ics"
                     else:
@@ -726,12 +723,10 @@ if uploaded_file:
         st.markdown('<div class="cesi-tag">Suivi Pédagogique</div>', unsafe_allow_html=True)
         
         if maquette_sheet:
-            # 1. Lecture de la maquette brute pour avoir l'ordre et les cibles
-            # Adaptation: on lit la maquette et on crée une structure propre comme dans l'ancienne appli
+            # 1. Lecture de la maquette brute
             raw_mq_df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=maquette_sheet, header=None, engine='openpyxl')
             
-            # Reconstruction d'un DataFrame propre 'maquette_df' avec subject et target
-            # Hypothèse colonne C (idx 2) = Matière, colonne M (idx 12) = Cible
+            # Reconstruction d'un DataFrame propre
             maquette_rows = []
             if raw_mq_df.shape[1] > 12:
                 for i in range(len(raw_mq_df)):
@@ -739,18 +734,18 @@ if uploaded_file:
                     tgt = raw_mq_df.iat[i, 12]
                     if pd.notna(subj) and str(subj).strip():
                         try: val = float(tgt)
-                        except: val = None # None si pas de cible (header ou autre)
+                        except: val = None
                         maquette_rows.append({'subject': str(subj).strip(), 'target': val})
             maquette_df = pd.DataFrame(maquette_rows)
 
-            # 2. Sélecteurs Promo & Groupe
+            # 2. Sélecteurs
             c_mq1, c_mq2 = st.columns(2)
             with c_mq1:
                 p_comp = st.selectbox("Comparer Promo (Feuille)", list(events_map.keys()), key="mq_promo")
             with c_mq2:
                 g_comp = st.selectbox("Sélectionner le groupe", options=['G 1', 'G 2'], index=0, key="mq_group")
 
-            # 3. Logique de filtrage (Legacy)
+            # 3. Logique de filtrage
             def parse_group_sel(sel):
                 s = sel.strip().upper().replace(' ', '')
                 if s in ['G1','G 1']:
@@ -762,17 +757,11 @@ if uploaded_file:
             sel_groups = parse_group_sel(g_comp)
 
             IGNORE_SUBJECTS = {
-                "erasmus day",
-                "forum international",
-                "période entreprise",
-                "férié",
-                "mission à l'international",
-                "matière",
-                "matières",
-                "divers"
+                "erasmus day", "forum international", "période entreprise",
+                "férié", "mission à l'international", "matière", "matières", "divers"
             }
 
-            # 4. Calcul des heures (Legacy Logic adapted to New Event Structure)
+            # 4. Calcul des heures
             def sum_hours_by_subject_and_group(events, groups_filter):
                 totals = {}
                 counts = {}
@@ -782,23 +771,17 @@ if uploaded_file:
                         continue 
 
                     # Filtrage par groupe
-                    # Dans le parser, ev['groups'] est une liste/set de strings (ex: ['G 1', 'G 2'] ou ['G 1'])
                     ev_groups_norm = set([g.strip().upper().replace(' ', '') for g in ev.get('groups', [])])
                     
-                    # Si l'événement n'a pas de groupe assigné (liste vide), on considère souvent que c'est promo entière
-                    # Mais pour coller à la logique stricte demandée :
                     if not ev.get('groups'):
-                        # Si vide -> Promo entière -> Compte pour G1 et G2
                         matches = True
                     else:
-                        # Si groupes définis -> Doit intersecter avec la sélection
                         tgt_norm = {g.strip().upper().replace(' ', '') for g in groups_filter}
                         matches = len(ev_groups_norm.intersection(tgt_norm)) > 0
                     
                     if not matches:
                         continue
 
-                    # Durée
                     delta = (ev['end'] - ev['start']).total_seconds() / 3600.0
                     totals[subj] = totals.get(subj, 0) + delta
                     counts[subj] = counts.get(subj, 0) + 1
@@ -807,7 +790,7 @@ if uploaded_file:
             evs_target = events_map.get(p_comp, [])
             totals_by_subject, counts_by_subject = sum_hours_by_subject_and_group(evs_target, sel_groups)
 
-            # 5. Construction du tableau final (basé sur l'ordre maquette)
+            # 5. Construction du tableau final
             rows_out = []
             for _, row in maquette_df.iterrows():
                 subj = row['subject']
@@ -838,16 +821,14 @@ if uploaded_file:
 
             def highlight_row(r):
                 if r['target_hours'] is None or pd.isna(r['target_hours']) or r['target_hours'] == 0:
-                    # Jaune si pas de cible (souvent titre ou optionnel)
-                    if r['entered_hours'] > 0: return ['']*len(r) # Si ya des heures mais pas de cible, on laisse normal ou warning? Le code legacy mettait jaune si target is None
+                    if r['entered_hours'] > 0: return ['']*len(r)
                     return ['background-color: #fff3cd']*len(r)
                 
-                # Rouge si écart significatif
                 if r['diff_hours'] is not None and abs(r['diff_hours']) > 0.001:
                     return ['background-color: #f8d7da']*len(r)
                 return ['']*len(r)
 
-            st.dataframe(out_df.style.apply(highlight_row, axis=1), use_container_width=True)
+            st.dataframe(out_df.style.apply(highlight_row, axis=1), width="stretch")
 
             # 7. Résumé
             c_r1, c_r2, c_r3 = st.columns(3)
