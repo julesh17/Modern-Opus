@@ -1091,6 +1091,25 @@ if uploaded_file:
                         "Heures formateur": round(h_formateur_grp, 2),
                     })
 
+            def df_to_tsv(df):
+                """Convertit un DataFrame en texte tabulé (copier-coller Excel-compatible)."""
+                return df.to_csv(sep='\t', index=False)
+
+            def copy_button(df, key):
+                """Affiche un bouton qui copie le DataFrame dans le presse-papier via JS."""
+                tsv = df_to_tsv(df)
+                tsv_escaped = tsv.replace('`', '\\`').replace('$', '\\$')
+                st.components.v1.html(f"""
+                <button onclick="navigator.clipboard.writeText(`{tsv_escaped}`).then(() => {{
+                    this.textContent = '✅ Copié !';
+                    setTimeout(() => this.textContent = '📋 Copier le tableau', 2000);
+                }})" style="
+                    background:#000; color:#fff; border:none; border-radius:6px;
+                    padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer;
+                    font-family:Inter,sans-serif; margin-bottom:6px;
+                ">📋 Copier le tableau</button>
+                """, height=44)
+
             if detail_rows:
                 df_detail = pd.DataFrame(detail_rows)
 
@@ -1107,6 +1126,7 @@ if uploaded_file:
                         {'selector': 'th', 'props': [('text-align', 'center'), ('font-weight', 'bold')]}
                     ])
 
+                copy_button(df_detail, "detail")
                 st.dataframe(style_detail(df_detail), use_container_width=True, hide_index=True)
 
                 # Totaux par promo (synthèse)
@@ -1130,6 +1150,7 @@ if uploaded_file:
                     })
                 if synth_rows:
                     df_synth = pd.DataFrame(synth_rows)
+                    copy_button(df_synth, "synth")
                     st.dataframe(df_synth.style.format({
                         col: "{:.2f} h" for col in df_synth.columns if "Heure" in col
                     }), use_container_width=True, hide_index=True)
