@@ -156,11 +156,13 @@ def normalize_group_label(x):
     except: pass
     s = str(x).strip()
     if not s: return None
-    m = re.search(r'G\s*\.?\s*(\d+)', s, re.I)
+    # Pattern numérique : G1, G.1, G 1, Groupe 1, 1 → normalisé en "G 1"
+    m = re.search(r'^G\s*\.?\s*(\d+)$', s, re.I)
     if m: return f'G {m.group(1)}'
     m2 = re.search(r'^(?:groupe)?\s*(\d+)$', s, re.I)
     if m2: return f'G {m2.group(1)}'
-    return s
+    # Nom libre (MECA, ENERGIE, etc.) → retourner tel quel en majuscules normalisées
+    return s.upper()
 
 def is_time_like(x):
     if x is None: return False
@@ -748,17 +750,31 @@ if uploaded_file:
             c_mq1, c_mq2 = st.columns(2)
             with c_mq1:
                 p_comp = st.selectbox("Comparer Promo (Feuille)", list(events_map.keys()), key="mq_promo")
-            with c_mq2:
-                g_comp = st.selectbox("Sélectionner le groupe", options=['G 1', 'G 2'], index=0, key="mq_group")
 
-            # 3. Logique de filtrage (Legacy)
+            # Détection dynamique des groupes présents dans cette promo
+            all_groups_in_promo = sorted(set(
+                g for ev in events_map.get(p_comp, [])
+                for g in ev.get('groups', [])
+                if g
+            ))
+            # Si aucun groupe détecté, proposer un groupe unique "Promo entière"
+            if not all_groups_in_promo:
+                all_groups_in_promo = ['Promo entière']
+
+            with c_mq2:
+                g_comp = st.selectbox("Sélectionner le groupe", options=all_groups_in_promo, index=0, key="mq_group")
+
+            # 3. Logique de filtrage — générique, fonctionne avec n'importe quel nom de groupe
             def parse_group_sel(sel):
+                # Retourne un set de variantes possibles du label sélectionné
+                # pour absorber les petites différences de normalisation
+                variants = {sel, sel.strip(), sel.upper(), sel.strip().upper()}
+                # Compatibilité G1/G 1
                 s = sel.strip().upper().replace(' ', '')
-                if s in ['G1','G 1']:
-                    return {'G 1','G1'}
-                if s in ['G2','G 2']:
-                    return {'G 2','G2'}
-                return {sel}
+                if re.match(r'^G\d+$', s):
+                    variants.add(s)
+                    variants.add(f'G {s[1:]}')
+                return variants
 
             sel_groups = parse_group_sel(g_comp)
 
@@ -789,10 +805,10 @@ if uploaded_file:
                     # Si l'événement n'a pas de groupe assigné (liste vide), on considère souvent que c'est promo entière
                     # Mais pour coller à la logique stricte demandée :
                     if not ev.get('groups'):
-                        # Si vide -> Promo entière -> Compte pour G1 et G2
+                        # Si vide -> Promo entière -> Compte pour tous les groupes
                         matches = True
                     else:
-                        # Si groupes définis -> Doit intersecter avec la sélection
+                        # Comparaison insensible casse/espaces — fonctionne avec G1, MECA, ENERGIE…
                         tgt_norm = {g.strip().upper().replace(' ', '') for g in groups_filter}
                         matches = len(ev_groups_norm.intersection(tgt_norm)) > 0
                     
@@ -979,6 +995,18 @@ if uploaded_file:
                     return 0.0
                 return duree_h(ev) * nb_formateurs(ev)
 
+            def group_matches(ev_groups, groupe):
+                """
+                Vérifie si 'groupe' est dans ev_groups.
+                Comparaison insensible à la casse et aux espaces,
+                fonctionne avec G 1, G1, MECA, ENERGIE, etc.
+                """
+                g_norm = groupe.strip().upper().replace(' ', '')
+                for g in ev_groups:
+                    if g.strip().upper().replace(' ', '') == g_norm:
+                        return True
+                return False
+
             def heures_formation_group(evs, promo, groupe):
                 """Heures de formation reçues par un groupe précis."""
                 total = 0.0
@@ -987,8 +1015,9 @@ if uploaded_file:
                         continue
                     groups = ev.get('groups', [])
                     if not groups:
+                        # Séance sans groupe = promo entière → compte pour tous
                         total += duree_h(ev)
-                    elif groupe in groups:
+                    elif group_matches(groups, groupe):
                         total += duree_h(ev)
                 return total
 
@@ -1001,7 +1030,7 @@ if uploaded_file:
                     groups = ev.get('groups', [])
                     if not groups:
                         total += duree_h(ev)
-                    elif groupe in groups:
+                    elif group_matches(groups, groupe):
                         total += duree_h(ev)
                 return total
 
@@ -1014,7 +1043,7 @@ if uploaded_file:
                     groups = ev.get('groups', [])
                     if not groups:
                         total += duree_h(ev)
-                    elif groupe in groups:
+                    elif group_matches(groups, groupe):
                         total += duree_h(ev)
                 return total
 
@@ -1027,9 +1056,15 @@ if uploaded_file:
             total_autonomie       = sum(heures_formation_event(e) for e in evs_periode if is_autonomie(e))
             total_formateur       = sum(heures_formateur_event(e) for e in evs_periode)
 
-            # Par promo / groupe
+            # Par promo / groupe — groupes détectés dynamiquement
             promos = sorted(events_map.keys())
-            groupes_labels = ['G 1', 'G 2']
+            groupes_labels = sorted(set(
+                g for e in evs_periode
+                for g in e.get('groups', [])
+                if g
+            ))
+            if not groupes_labels:
+                groupes_labels = ['Promo entière']
 
             # -----------------------------------------------------------------------
             # Affichage : Métriques globales
@@ -1079,7 +1114,7 @@ if uploaded_file:
                         if is_autonomie(ev):
                             continue
                         groups = ev.get('groups', [])
-                        if not groups or grp in groups:
+                        if not groups or group_matches(groups, grp):
                             h_formateur_grp += duree_h(ev) * nb_formateurs(ev)
 
                     detail_rows.append({
