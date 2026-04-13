@@ -472,13 +472,14 @@ if uploaded_file:
     
     st.write("") 
 
-    tab_cal, tab_mail, tab_stats, tab_exam, tab_export, tab_maquette = st.tabs([
+    tab_cal, tab_mail, tab_stats, tab_exam, tab_export, tab_maquette, tab_volume = st.tabs([
         "🗓️ Calendrier", 
         "✉️ Mails",
         "📊 Récapitulatifs",
         "🎓 Examens",
         "📥 Exports", 
-        "📐 Maquette"
+        "📐 Maquette",
+        "📈 Volume Horaire"
     ])
 
     # --- TAB 1: CALENDRIER ---
@@ -864,6 +865,224 @@ if uploaded_file:
 
         else:
             st.warning("Pas de feuille Maquette détectée dans le fichier.")
+
+    # --- TAB 7: VOLUME HORAIRE ---
+    with tab_volume:
+        st.markdown('<div class="cesi-tag">Volume Horaire</div>', unsafe_allow_html=True)
+        st.write("")
+
+        # --- Sélection de la période ---
+        all_dates = [e['start'].date() for e in all_events_flat]
+        min_date = min(all_dates) if all_dates else date.today()
+        max_date = max(all_dates) if all_dates else date.today()
+
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            date_debut = st.date_input("Date de début", value=min_date, min_value=min_date, max_value=max_date, key="vh_d1")
+        with col_d2:
+            date_fin = st.date_input("Date de fin", value=max_date, min_value=min_date, max_value=max_date, key="vh_d2")
+
+        if date_debut > date_fin:
+            st.error("La date de début doit être antérieure à la date de fin.")
+            st.stop()
+
+        # --- Filtrage sur la période ---
+        evs_periode = [e for e in all_events_flat if date_debut <= e['start'].date() <= date_fin]
+
+        if not evs_periode:
+            st.info("Aucune séance sur cette période.")
+        else:
+            # -----------------------------------------------------------------------
+            # Fonctions de calcul
+            # -----------------------------------------------------------------------
+
+            def duree_h(ev):
+                return (ev['end'] - ev['start']).total_seconds() / 3600.0
+
+            def is_autonomie(ev):
+                """Séance sans enseignant assigné → autonomie."""
+                return len(ev.get('teachers', [])) == 0
+
+            def nb_groupes_actifs(ev):
+                """Nombre de demi-groupes distincts dans l'événement."""
+                return max(1, len(ev.get('groups', [])))
+
+            def heures_formateur_event(ev):
+                """
+                Heures formateur pour un événement :
+                - Classe entière (1 seul groupe ou pas de groupe) + 1 formateur → durée × 1
+                - Dédoublement (2 groupes) + 1 formateur → durée × 2
+                - Plusieurs formateurs (classe entière ou dédoublée) → durée × nb_formateurs
+                  (chaque formateur cumule ses heures indépendamment)
+                Règle : heures_formateur = durée × max(nb_groupes, nb_formateurs)
+                """
+                nb_f = max(1, len(ev.get('teachers', [])))
+                nb_g = nb_groupes_actifs(ev)
+                # Si dédoublement ET un seul formateur → 2 groupes en parallèle → 2× les heures formateur
+                # Si plusieurs formateurs → chacun compte
+                return duree_h(ev) * max(nb_g, nb_f)
+
+            def heures_formation_group(evs, promo, groupe):
+                """Heures de formation pour un groupe précis."""
+                total = 0.0
+                for ev in evs:
+                    if ev.get('promo_label') != promo:
+                        continue
+                    groups = ev.get('groups', [])
+                    if not groups:
+                        # Classe entière → compte pour tous les groupes
+                        total += duree_h(ev)
+                    elif groupe in groups:
+                        total += duree_h(ev)
+                return total
+
+            # -----------------------------------------------------------------------
+            # Calculs globaux
+            # -----------------------------------------------------------------------
+
+            # Heures de formation totales (dédoublées = une séance par groupe)
+            # Pour chaque événement, on compte autant de fois la durée qu'il y a de groupes
+            total_formation = sum(duree_h(e) * nb_groupes_actifs(e) for e in evs_periode)
+            total_formateur = sum(heures_formateur_event(e) for e in evs_periode if not is_autonomie(e))
+            total_autonomie = sum(duree_h(e) * nb_groupes_actifs(e) for e in evs_periode if is_autonomie(e))
+            total_avec_enseignant = sum(duree_h(e) * nb_groupes_actifs(e) for e in evs_periode if not is_autonomie(e))
+
+            # Par promo / groupe
+            promos = sorted(events_map.keys())
+            groupes_labels = ['G 1', 'G 2']
+
+            # -----------------------------------------------------------------------
+            # Affichage : Métriques globales
+            # -----------------------------------------------------------------------
+            st.markdown("### Vue d'ensemble de la période")
+            st.caption(f"Du **{date_debut.strftime('%d/%m/%Y')}** au **{date_fin.strftime('%d/%m/%Y')}**")
+            st.write("")
+
+            cols_global = st.columns(4)
+            metrics_global = [
+                ("Heures de formation", total_formation, "Somme des heures × groupes"),
+                ("Heures formateur", total_formateur, "Dédoublements & multi-formateurs pris en compte"),
+                ("Heures en autonomie", total_autonomie, "Séances sans enseignant"),
+                ("Heures avec enseignant", total_avec_enseignant, "Séances avec au moins 1 formateur"),
+            ]
+            for col, (label, val, help_txt) in zip(cols_global, metrics_global):
+                with col:
+                    st.markdown(f"""
+                    <div class="metric-card" title="{help_txt}">
+                        <div class="metric-value">{val:.1f} h</div>
+                        <div class="metric-label">{label}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.write("")
+            st.markdown("---")
+
+            # -----------------------------------------------------------------------
+            # Affichage : Détail par Promo & Groupe
+            # -----------------------------------------------------------------------
+            st.markdown("### Détail par Promo et Groupe")
+            st.write("")
+
+            detail_rows = []
+            for promo in promos:
+                evs_promo = [e for e in evs_periode if e.get('promo_label') == promo]
+                if not evs_promo:
+                    continue
+
+                for grp in groupes_labels:
+                    h_form = heures_formation_group(evs_periode, promo, grp)
+                    # Heures formateur pour ce promo/groupe
+                    h_formateur_grp = 0.0
+                    for ev in evs_promo:
+                        groups = ev.get('groups', [])
+                        if not groups or grp in groups:
+                            if not is_autonomie(ev):
+                                nb_f = max(1, len(ev.get('teachers', [])))
+                                # Dédoublement : si l'event couvre 2 groupes, chaque groupe 
+                                # reçoit 1 "part" de formateur, sauf si 2 formateurs distincts
+                                if not groups:
+                                    # classe entière → formateur compte en entier
+                                    h_formateur_grp += duree_h(ev) * nb_f
+                                else:
+                                    # dédoublé : chaque groupe a son formateur (ou partage)
+                                    h_formateur_grp += duree_h(ev) * nb_f / len(groups)
+
+                    h_auto = sum(
+                        duree_h(e) for e in evs_promo
+                        if is_autonomie(e) and (not e.get('groups') or grp in e.get('groups', []))
+                    )
+                    h_ens = h_form - h_auto
+
+                    detail_rows.append({
+                        "Promo": promo,
+                        "Groupe": grp,
+                        "Heures formation": round(h_form, 2),
+                        "Heures formateur": round(h_formateur_grp, 2),
+                        "Heures autonomie": round(h_auto, 2),
+                        "Heures avec enseignant": round(h_ens, 2),
+                    })
+
+            if detail_rows:
+                df_detail = pd.DataFrame(detail_rows)
+
+                # Affichage tableau stylé
+                def style_detail(df):
+                    return df.style.format({
+                        "Heures formation": "{:.2f} h",
+                        "Heures formateur": "{:.2f} h",
+                        "Heures autonomie": "{:.2f} h",
+                        "Heures avec enseignant": "{:.2f} h",
+                    }).set_properties(**{
+                        'text-align': 'center'
+                    }).set_table_styles([
+                        {'selector': 'th', 'props': [('text-align', 'center'), ('font-weight', 'bold')]}
+                    ])
+
+                st.dataframe(style_detail(df_detail), use_container_width=True, hide_index=True)
+
+                # Totaux par promo (synthèse)
+                st.write("")
+                st.markdown("#### Synthèse par Promo (toutes groupes confondues)")
+                synth_rows = []
+                for promo in promos:
+                    sub = df_detail[df_detail["Promo"] == promo]
+                    if sub.empty:
+                        continue
+                    synth_rows.append({
+                        "Promo": promo,
+                        "Heures formation (total groupes)": round(sub["Heures formation"].sum(), 2),
+                        "Heures formateur": round(
+                            sum(heures_formateur_event(e) for e in evs_periode
+                                if e.get('promo_label') == promo and not is_autonomie(e)), 2
+                        ),
+                        "Heures autonomie": round(sub["Heures autonomie"].sum(), 2),
+                        "Heures avec enseignant": round(sub["Heures avec enseignant"].sum(), 2),
+                    })
+                if synth_rows:
+                    df_synth = pd.DataFrame(synth_rows)
+                    st.dataframe(df_synth.style.format({
+                        col: "{:.2f} h" for col in df_synth.columns if "Heure" in col
+                    }), use_container_width=True, hide_index=True)
+
+            # -----------------------------------------------------------------------
+            # Aide / Légende
+            # -----------------------------------------------------------------------
+            st.write("")
+            with st.expander("ℹ️ Explication des calculs"):
+                st.markdown("""
+**Heures de formation** : total des heures de cours planifiées, chaque demi-groupe étant compté séparément.  
+*(Ex : 2h en dédoublement G1/G2 = 4h de formation)*
+
+**Heures formateur** : heures réellement assurées par les formateurs.  
+- Classe entière, 1 formateur → heures formation = heures formateur  
+- Dédoublement (2 groupes), 1 formateur par groupe → heures formateur × 2  
+- Plusieurs formateurs simultanés → chaque formateur cumule ses heures  
+
+**Heures en autonomie** : séances sans enseignant assigné (travail personnel, e-learning…).  
+
+**Heures avec enseignant** : heures de formation − heures en autonomie.
+                """)
+
 
 else:
     # État initial (sans fichier)
