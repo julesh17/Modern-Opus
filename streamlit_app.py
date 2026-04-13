@@ -886,8 +886,46 @@ if uploaded_file:
             st.error("La date de début doit être antérieure à la date de fin.")
             st.stop()
 
-        # --- Filtrage sur la période ---
-        evs_periode = [e for e in all_events_flat if date_debut <= e['start'].date() <= date_fin]
+        # --- Exclusion de matières ---
+        MATIERES_EXCLUES_DEFAUT = {
+            "periode entreprise", "periode en entreprise",
+            "periode alternance", "alternance",
+            "ferie", "ferie", "ferie",
+            "erasmus day", "forum international", "mission a l'international",
+            "divers", "matiere", "matieres"
+        }
+
+        all_subjects_sorted = sorted(set(e['summary'] for e in all_events_flat))
+
+        import unicodedata
+        def normalize_str(s):
+            s = s.strip().lower()
+            s = unicodedata.normalize('NFD', s)
+            s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+            return s
+
+        default_excluded = [
+            s for s in all_subjects_sorted
+            if normalize_str(s) in MATIERES_EXCLUES_DEFAUT
+        ]
+
+        with st.expander("Matières exclues du calcul", expanded=True):
+            st.caption("Ces matières sont exclues par défaut. Ajoutez-en ou retirez-en selon vos besoins.")
+            matieres_exclues = st.multiselect(
+                "Matières à exclure",
+                options=all_subjects_sorted,
+                default=default_excluded,
+                key="vh_exclusions"
+            )
+
+        matieres_exclues_norm = {normalize_str(m) for m in matieres_exclues}
+
+        # --- Filtrage sur la période + exclusions ---
+        evs_periode = [
+            e for e in all_events_flat
+            if date_debut <= e['start'].date() <= date_fin
+            and normalize_str(e['summary']) not in matieres_exclues_norm
+        ]
 
         if not evs_periode:
             st.info("Aucune séance sur cette période.")
