@@ -942,33 +942,77 @@ if uploaded_file:
                 return len(ev.get('teachers', [])) == 0
 
             def nb_groupes_actifs(ev):
-                """Nombre de demi-groupes distincts dans l'événement."""
+                """Nombre de demi-groupes distincts dans l'événement (min 1)."""
                 return max(1, len(ev.get('groups', [])))
+
+            def nb_formateurs(ev):
+                """Nombre de formateurs dans l'événement."""
+                return max(1, len(ev.get('teachers', [])))
+
+            def heures_formation_event(ev):
+                """
+                Heures de formation = durée × nb_groupes.
+                1h en dédoublement G1+G2 = 2h de formation (1h reçue par chaque groupe).
+                """
+                return duree_h(ev) * nb_groupes_actifs(ev)
+
+            def heures_avec_enseignant_event(ev):
+                """
+                Heures avec enseignant = durée × nb_groupes, hors autonomie.
+                1h cours classe entière = 1h avec enseignant.
+                1h dédoublement G1+G2   = 2h avec enseignant (1h par groupe).
+                Toujours >= heures_formateur car on compte les groupes, pas les formateurs.
+                """
+                if is_autonomie(ev):
+                    return 0.0
+                return duree_h(ev) * nb_groupes_actifs(ev)
 
             def heures_formateur_event(ev):
                 """
-                Heures formateur pour un événement :
-                - Classe entière (1 seul groupe ou pas de groupe) + 1 formateur → durée × 1
-                - Dédoublement (2 groupes) + 1 formateur → durée × 2
-                - Plusieurs formateurs (classe entière ou dédoublée) → durée × nb_formateurs
-                  (chaque formateur cumule ses heures indépendamment)
-                Règle : heures_formateur = durée × max(nb_groupes, nb_formateurs)
+                Heures formateur = durée × nb_formateurs.
+                Reflète le temps réel passé par les formateurs, indépendamment des groupes.
+                - 1h, 1 formateur, classe entière  → 1h formateur
+                - 1h, 1 formateur, dédoublement    → 1h formateur  (même créneau, même formateur)
+                - 1h, 2 formateurs simultanés       → 2h formateur
                 """
-                nb_f = max(1, len(ev.get('teachers', [])))
-                nb_g = nb_groupes_actifs(ev)
-                # Si dédoublement ET un seul formateur → 2 groupes en parallèle → 2× les heures formateur
-                # Si plusieurs formateurs → chacun compte
-                return duree_h(ev) * max(nb_g, nb_f)
+                if is_autonomie(ev):
+                    return 0.0
+                return duree_h(ev) * nb_formateurs(ev)
 
             def heures_formation_group(evs, promo, groupe):
-                """Heures de formation pour un groupe précis."""
+                """Heures de formation reçues par un groupe précis."""
                 total = 0.0
                 for ev in evs:
                     if ev.get('promo_label') != promo:
                         continue
                     groups = ev.get('groups', [])
                     if not groups:
-                        # Classe entière → compte pour tous les groupes
+                        total += duree_h(ev)
+                    elif groupe in groups:
+                        total += duree_h(ev)
+                return total
+
+            def heures_avec_enseignant_group(evs, promo, groupe):
+                """Heures avec enseignant reçues par un groupe précis (hors autonomie)."""
+                total = 0.0
+                for ev in evs:
+                    if ev.get('promo_label') != promo or is_autonomie(ev):
+                        continue
+                    groups = ev.get('groups', [])
+                    if not groups:
+                        total += duree_h(ev)
+                    elif groupe in groups:
+                        total += duree_h(ev)
+                return total
+
+            def heures_autonomie_group(evs, promo, groupe):
+                """Heures en autonomie pour un groupe précis."""
+                total = 0.0
+                for ev in evs:
+                    if ev.get('promo_label') != promo or not is_autonomie(ev):
+                        continue
+                    groups = ev.get('groups', [])
+                    if not groups:
                         total += duree_h(ev)
                     elif groupe in groups:
                         total += duree_h(ev)
@@ -978,12 +1022,10 @@ if uploaded_file:
             # Calculs globaux
             # -----------------------------------------------------------------------
 
-            # Heures de formation totales (dédoublées = une séance par groupe)
-            # Pour chaque événement, on compte autant de fois la durée qu'il y a de groupes
-            total_formation = sum(duree_h(e) * nb_groupes_actifs(e) for e in evs_periode)
-            total_formateur = sum(heures_formateur_event(e) for e in evs_periode if not is_autonomie(e))
-            total_autonomie = sum(duree_h(e) * nb_groupes_actifs(e) for e in evs_periode if is_autonomie(e))
-            total_avec_enseignant = sum(duree_h(e) * nb_groupes_actifs(e) for e in evs_periode if not is_autonomie(e))
+            total_formation       = sum(heures_formation_event(e) for e in evs_periode)
+            total_avec_enseignant = sum(heures_avec_enseignant_event(e) for e in evs_periode)
+            total_autonomie       = sum(heures_formation_event(e) for e in evs_periode if is_autonomie(e))
+            total_formateur       = sum(heures_formateur_event(e) for e in evs_periode)
 
             # Par promo / groupe
             promos = sorted(events_map.keys())
@@ -1028,36 +1070,25 @@ if uploaded_file:
                     continue
 
                 for grp in groupes_labels:
-                    h_form = heures_formation_group(evs_periode, promo, grp)
-                    # Heures formateur pour ce promo/groupe
+                    h_form    = heures_formation_group(evs_periode, promo, grp)
+                    h_ens     = heures_avec_enseignant_group(evs_periode, promo, grp)
+                    h_auto    = heures_autonomie_group(evs_periode, promo, grp)
+                    # Heures formateur : durée × nb_formateurs, sur les séances de ce promo/groupe
                     h_formateur_grp = 0.0
                     for ev in evs_promo:
+                        if is_autonomie(ev):
+                            continue
                         groups = ev.get('groups', [])
                         if not groups or grp in groups:
-                            if not is_autonomie(ev):
-                                nb_f = max(1, len(ev.get('teachers', [])))
-                                # Dédoublement : si l'event couvre 2 groupes, chaque groupe 
-                                # reçoit 1 "part" de formateur, sauf si 2 formateurs distincts
-                                if not groups:
-                                    # classe entière → formateur compte en entier
-                                    h_formateur_grp += duree_h(ev) * nb_f
-                                else:
-                                    # dédoublé : chaque groupe a son formateur (ou partage)
-                                    h_formateur_grp += duree_h(ev) * nb_f / len(groups)
-
-                    h_auto = sum(
-                        duree_h(e) for e in evs_promo
-                        if is_autonomie(e) and (not e.get('groups') or grp in e.get('groups', []))
-                    )
-                    h_ens = h_form - h_auto
+                            h_formateur_grp += duree_h(ev) * nb_formateurs(ev)
 
                     detail_rows.append({
                         "Promo": promo,
                         "Groupe": grp,
                         "Heures formation": round(h_form, 2),
-                        "Heures formateur": round(h_formateur_grp, 2),
-                        "Heures autonomie": round(h_auto, 2),
                         "Heures avec enseignant": round(h_ens, 2),
+                        "Heures autonomie": round(h_auto, 2),
+                        "Heures formateur": round(h_formateur_grp, 2),
                     })
 
             if detail_rows:
@@ -1080,21 +1111,22 @@ if uploaded_file:
 
                 # Totaux par promo (synthèse)
                 st.write("")
-                st.markdown("#### Synthèse par Promo (toutes groupes confondues)")
+                st.markdown("#### Synthèse par Promo (heures formateur, toutes promos)")
                 synth_rows = []
                 for promo in promos:
-                    sub = df_detail[df_detail["Promo"] == promo]
-                    if sub.empty:
+                    evs_promo_all = [e for e in evs_periode if e.get('promo_label') == promo]
+                    if not evs_promo_all:
                         continue
                     synth_rows.append({
                         "Promo": promo,
-                        "Heures formation (total groupes)": round(sub["Heures formation"].sum(), 2),
+                        "Heures formation (Σ groupes)": round(
+                            sum(heures_formation_event(e) for e in evs_promo_all), 2),
+                        "Heures avec enseignant (Σ groupes)": round(
+                            sum(heures_avec_enseignant_event(e) for e in evs_promo_all), 2),
+                        "Heures autonomie (Σ groupes)": round(
+                            sum(heures_formation_event(e) for e in evs_promo_all if is_autonomie(e)), 2),
                         "Heures formateur": round(
-                            sum(heures_formateur_event(e) for e in evs_periode
-                                if e.get('promo_label') == promo and not is_autonomie(e)), 2
-                        ),
-                        "Heures autonomie": round(sub["Heures autonomie"].sum(), 2),
-                        "Heures avec enseignant": round(sub["Heures avec enseignant"].sum(), 2),
+                            sum(heures_formateur_event(e) for e in evs_promo_all), 2),
                     })
                 if synth_rows:
                     df_synth = pd.DataFrame(synth_rows)
@@ -1108,17 +1140,21 @@ if uploaded_file:
             st.write("")
             with st.expander("ℹ️ Explication des calculs"):
                 st.markdown("""
-**Heures de formation** : total des heures de cours planifiées, chaque demi-groupe étant compté séparément.  
-*(Ex : 2h en dédoublement G1/G2 = 4h de formation)*
+**Heures de formation** : total des heures planifiées, chaque groupe étant compté séparément.  
+*Exemple : 1h en dédoublement G1/G2 = 2h de formation (1h reçue par chaque groupe).*
 
-**Heures formateur** : heures réellement assurées par les formateurs.  
-- Classe entière, 1 formateur → heures formation = heures formateur  
-- Dédoublement (2 groupes), 1 formateur par groupe → heures formateur × 2  
-- Plusieurs formateurs simultanés → chaque formateur cumule ses heures  
+**Heures avec enseignant** : même logique que les heures de formation, mais uniquement pour les séances avec au moins un formateur.  
+*Toujours ≤ heures de formation (la différence = autonomie).*
 
 **Heures en autonomie** : séances sans enseignant assigné (travail personnel, e-learning…).  
+*Heures de formation = heures avec enseignant + heures en autonomie.*
 
-**Heures avec enseignant** : heures de formation − heures en autonomie.
+**Heures formateur** : temps réellement passé par les formateurs, indépendamment des groupes.  
+- 1h, 1 formateur, classe entière → **1h formateur**  
+- 1h, 1 formateur, dédoublement G1+G2 → **1h formateur** (même créneau, même formateur)  
+- 1h, 2 formateurs simultanés → **2h formateur** (chaque formateur compte)  
+
+*Invariant garanti : heures formateur ≤ heures avec enseignant.*
                 """)
 
 
