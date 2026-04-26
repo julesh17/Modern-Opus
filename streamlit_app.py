@@ -222,7 +222,25 @@ def parse_excel_engine(file_content, sheet_names_to_scan):
             merged_map = get_merged_map_from_bytes(file_content, sheet)
             
             nrows, ncols = df.shape
-            s_rows = [i for i in range(len(df)) if isinstance(df.iat[i,0], str) and re.match(r'^\s*S\s*\d+', df.iat[i,0].strip(), re.I)]
+            def _is_week_row(val):
+                """Détecte une ligne 'semaine' en colonne A.
+                Supporte :
+                  - Ancien format : 'S40', 'S 40', 'S.40' (string)
+                  - Nouveau format : entier seul entre 1 et 53 (ex: 40, 1, 12)
+                """
+                if val is None:
+                    return False
+                if isinstance(val, str) and re.match(r'^\s*S\s*\.?\s*\d+', val.strip(), re.I):
+                    return True
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
+                    try:
+                        n = int(val)
+                        return 1 <= n <= 53 and float(val) == n
+                    except (ValueError, TypeError):
+                        return False
+                return False
+
+            s_rows = [i for i in range(len(df)) if _is_week_row(df.iat[i, 0])]
             h_rows = [i for i in range(len(df)) if isinstance(df.iat[i,0], str) and re.match(r'^\s*H\s*\d+', df.iat[i,0].strip(), re.I)]
             
             raw_events = []
