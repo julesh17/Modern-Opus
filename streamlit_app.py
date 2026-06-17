@@ -599,8 +599,8 @@ if uploaded_file:
                             
                             for i in range(1, len(ev_list)):
                                 nxt = ev_list[i]
-                                # Si la fin de l'actuel == début du suivant (continuité parfaite)
-                                if curr['end'] == nxt['start']:
+                                # Si la fin de l'actuel == début du suivant (continuité parfaite), changement pour prndre en compte les séances en groupes de 2 heures
+                                if curr['end'] == nxt['start'] and set(curr.get('groups', [])) == set(nxt.get('groups', [])):
                                     # On étend la fin
                                     curr['end'] = nxt['end']
                                     # On fusionne les groupes (union)
